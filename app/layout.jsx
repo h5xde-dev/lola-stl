@@ -20,7 +20,7 @@ export const metadata = {
   formatDetection: { telephone: false },
 };
 
-export const viewport = { themeColor: "#f7f5f0", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport = { themeColor: "#090713", colorScheme: "dark", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
   return (

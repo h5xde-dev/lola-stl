@@ -17,6 +17,7 @@ export default function ModelView({ initial }) {
   const { inCart, gift, cost, hasSame } = useOffer(m);
   const [shot, setShot] = useState(0);
   const photos = m.photos || [];
+  const shots = [...photos, null];
   const pr = s.prices;
   const rel = related(s.models, m, 4);
   const isBox = m.cat === "box";
@@ -39,7 +40,7 @@ export default function ModelView({ initial }) {
         <div className="gallery">
           <div className="product-image-link">
             <div className="detail-image">
-              {shot === 0 || !photos[shot - 1] ? <ModelArt m={m} uid={"p-" + m.id} photo={false} /> : <img src={photos[shot - 1]} alt={`${m.name}, фото ${shot}`} />}
+              {shots[shot] ? <img src={shots[shot]} alt={`${m.name}, фото ${shot + 1}`} /> : <ModelArt m={m} uid={"p-" + m.id} photo={false} />}
             </div>
             <span className="product-tags">
               {m.isNew && <span className="product-tag new">Новинка</span>}
@@ -50,8 +51,8 @@ export default function ModelView({ initial }) {
           </div>
           {photos.length > 0 && (
             <div className="thumbs" role="group" aria-label="Изображения">
-              {[null, ...photos].map((p, i) => (
-                <button key={i} type="button" aria-pressed={shot === i} aria-label={i ? `Фото ${i}` : "Схема модели"} onClick={() => setShot(i)}>
+              {shots.map((p, i) => (
+                <button key={i} type="button" aria-pressed={shot === i} aria-label={p ? `Фото ${i + 1}` : "Схема модели"} onClick={() => setShot(i)}>
                   {p ? <img src={p} alt="" /> : <ModelArt m={m} uid={"t-" + m.id} photo={false} />}
                 </button>
               ))}

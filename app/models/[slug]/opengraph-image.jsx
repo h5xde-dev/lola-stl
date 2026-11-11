@@ -12,5 +12,5 @@ export default async function Image({ params }) {
   const m = await getModel(slug);
   if (!m) return ogImage({ title: "lola.stl", sub: "STL-модели для 3D-печати", chip: "Каталог" });
   const price = m.cat === "box" ? boxPrice(DEFAULT_PRICES, 1, false) : paidPrice(DEFAULT_PRICES, 1);
-  return ogImage({ title: m.name, sub: `STL-модель ${m.cat === "box" ? "бокса" : "кашпо"} · ${m.dims.replace(/ /g, "\u00a0")}`, chip: rub(price).replace(" ", " "), m });
+  return ogImage({ title: m.name, sub: `STL-модель ${m.cat === "box" ? "бокса" : "кашпо"}${m.dims ? " · " + m.dims.replace(/ /g, "\u00a0") : ""}`, chip: rub(price).replace(" ", " "), m });
 }

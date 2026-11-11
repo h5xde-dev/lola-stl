@@ -41,7 +41,12 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "null");
-      if (saved && Array.isArray(saved.cart) && Array.isArray(saved.models)) setS(p => ({ ...p, ...saved }));
+      if (saved && Array.isArray(saved.cart) && Array.isArray(saved.models)) {
+        // Новые модели из каталога добавляются к сохранённым правкам админки.
+        const ids = new Set(saved.models.map(m => m.id));
+        saved.models = [...saved.models, ...BASE_MODELS.filter(m => !ids.has(m.id)).map(m => JSON.parse(JSON.stringify(m)))];
+        setS(p => ({ ...p, ...saved }));
+      }
     } catch {}
     setReady(true);
   }, []);

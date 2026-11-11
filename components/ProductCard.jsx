@@ -56,7 +56,7 @@ export default function ProductCard({ m }) {
         <div>
           <span className="eyebrow">{catName(m.cat)}</span>
           <h3><Link href={href}>{m.name}</Link></h3>
-          <span className="product-size">STL · {m.mb} МБ · {(m.dims || "").replace(/ мм$/, "")} мм</span>
+          <span className="product-size">STL · {m.mb} МБ{m.dims ? ` · ${m.dims}` : ""}</span>
         </div>
         <div className="product-buy">
           <PriceLine m={m} />

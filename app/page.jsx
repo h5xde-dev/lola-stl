@@ -5,7 +5,7 @@ import Catalog from "@/components/Catalog";
 import JsonLd from "@/lib/jsonld";
 import { getModels } from "@/lib/models";
 import { SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/site";
-import heroImg from "@/public/images/hero-studio.jpg";
+import heroImg from "@/public/images/hero-neon.jpg";
 import editorialImg from "@/public/images/editorial.jpg";
 
 // Страница собирается на сервере при каждом запросе: каталог берётся из getModels(),
@@ -39,10 +39,10 @@ export default async function Home() {
             <span><b>Каждая модель проверена печатью</b><small>Около 130 моделей, каталог пополняется</small></span>
           </div>
         </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-photo"><Image src={heroImg} alt="" priority sizes="(max-width: 640px) 100vw, 50vw" placeholder="blur" /></div>
-          <div className="hero-caption"><span>КОЛЛЕКЦИЯ № 01</span><strong>Кашпо<br />и боксы</strong><ArrowDown size={18} /></div>
-          <div className="hero-stamp">СОЗДАНО<br />ДЛЯ ПЕЧАТИ</div>
+        <div className="hero-art">
+          <div className="hero-photo"><Image src={heroImg} alt="Напечатанное кашпо «Глубина» с щупальцами в бирюзово-розовом пластике" priority sizes="(max-width: 640px) 100vw, 50vw" placeholder="blur" /></div>
+          <div className="hero-caption" aria-hidden="true"><span>КОЛЛЕКЦИЯ № 01</span><strong>Неоновая<br />серия</strong><ArrowDown size={18} /></div>
+          <div className="hero-stamp" aria-hidden="true">СОЗДАНО<br />ДЛЯ ПЕЧАТИ</div>
         </div>
       </section>
 

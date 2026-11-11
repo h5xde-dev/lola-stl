@@ -15,7 +15,8 @@ export async function generateMetadata({ params }) {
   const m = await getModel(slug);
   if (!m) return { title: "Модель", robots: { index: false, follow: false } };
   const title = `${m.name} — STL-модель ${kindWord(m)} для 3D-печати`;
-  const description = `${m.desc} Размер ${m.dims}, ${m.print}. Файл STL ${m.mb} МБ сразу после оплаты, продажа отпечатков разрешена.`;
+  const extra = [m.dims && `Размер ${m.dims}`, m.print].filter(Boolean).join(", ");
+  const description = `${m.desc} ${extra ? extra + ". " : ""}Файл STL ${m.mb} МБ сразу после оплаты, продажа отпечатков разрешена.`;
   return {
     title,
     description,
@@ -38,14 +39,14 @@ export default async function ModelPage({ params, searchParams }) {
         "@graph": [
           {
             "@type": "Product", "@id": url + "#product", name: m.name, description: m.desc, sku: m.id, url,
-            image: `${url}/opengraph-image`, category: `STL-модели / ${catName(m.cat)}`,
+            image: m.photos?.length ? [SITE_URL + m.photos[0], `${url}/opengraph-image`] : `${url}/opengraph-image`, category: `STL-модели / ${catName(m.cat)}`,
             brand: { "@type": "Brand", name: SITE_NAME },
             additionalProperty: [
               { "@type": "PropertyValue", name: "Формат", value: "STL" },
               { "@type": "PropertyValue", name: "Размер файла", value: `${m.mb} МБ` },
-              { "@type": "PropertyValue", name: "Размер после печати", value: m.dims },
-              { "@type": "PropertyValue", name: "Настройки печати", value: m.print },
-            ],
+              m.dims && { "@type": "PropertyValue", name: "Размер после печати", value: m.dims },
+              m.print && { "@type": "PropertyValue", name: "Настройки печати", value: m.print },
+            ].filter(Boolean),
             offers: { "@type": "Offer", url, price, priceCurrency: "RUB", availability: "https://schema.org/InStock", itemCondition: "https://schema.org/NewCondition" },
           },
           {
