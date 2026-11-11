@@ -7,7 +7,10 @@ import { boxPrice, paidPrice } from "@/lib/pricing";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Страница категории собирается на сервере при каждом запросе.
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
+// Пустой список: страницы не собираются при сборке образа, а рендерятся при первом запросе
+// и дальше отдаются из кеша (ISR) до сохранения в админке или 5 минут.
+export async function generateStaticParams() { return []; }
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -23,11 +26,10 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function CategoryPage({ params, searchParams }) {
+export default async function CategoryPage({ params }) {
   const { slug } = await params;
   const c = await getCategory(slug);
-  // Категории, добавленные в админке прототипа, живут только в браузере.
-  if (!c) { if ((await searchParams).local) return <CategoryView slug={slug} />; notFound(); }
+  if (!c) notFound();
   const list = (await getModels()).filter(m => m.category === c.id);
   const url = `${SITE_URL}/category/${c.slug}`;
   const prices = await getPrices();

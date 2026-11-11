@@ -280,7 +280,6 @@ export function AdminEditor({ id }) {
           </div>
           {confirmDel && <div className="confirm"><span>Модель пропадёт из каталога и админки. Те, кто её уже купил, сохранят доступ к файлу.</span>
             <button type="button" className="btn danger" onClick={del}>Удалить</button><button type="button" className="btn" onClick={() => setConfirmDel(false)}>Оставить</button></div>}
-          {d.custom && <p className="note">Модель хранится только в этом браузере. Её страница видна вам, но поисковики увидят модели после подключения базы данных.</p>}
         </div>
       </div>
     </>

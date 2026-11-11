@@ -16,9 +16,9 @@ import korall from "@/public/images/works/korall.jpg";
 import rassada9 from "@/public/images/works/rassada-9.jpg";
 import leopard from "@/public/images/works/rassada-leopard.jpg";
 
-// Страница собирается на сервере при каждом запросе: каталог берётся из getModels(),
-// поэтому после подключения базы новые модели появятся без пересборки.
-export const dynamic = "force-dynamic";
+// Страница собирается на сервере из базы и кешируется на 5 минут (ISR); сохранение в админке
+// сбрасывает кеш сразу, поэтому новые модели и цены видны без ожидания.
+export const revalidate = 300;
 export const metadata = { alternates: { canonical: "/" } };
 
 const MARQUEE = ["Авторские STL-модели", "Шёлковый PLA", "Режим вазы", "Файлы сразу после оплаты", "Отпечатки можно продавать", "2 + 1 в подарок", "Без регистрации", "Проверено печатью"];

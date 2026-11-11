@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { adminOnly, body, json, wrap } from "@/lib/server/http";
 import * as R from "@/lib/server/repo";
 import { serializeOrders } from "@/lib/server/shop";
@@ -44,6 +45,7 @@ export const PUT = wrap(async req => {
     st.downloads = { ...cur, limit: Math.max(1, Math.min(50, Math.round(+b.downloadLimit || 5))) };
   }
   if (Object.keys(st).length) await R.setSettings(st);
-  R.invalidate(); // сайт сразу показывает новые цены, акции и модели
+  R.invalidate();              // кеш данных в памяти
+  revalidatePath("/", "layout"); // кеш готовых страниц — сайт сразу показывает новые цены, акции и модели
   return json({ ok: true });
 });

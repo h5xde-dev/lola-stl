@@ -5,9 +5,21 @@ import ModelArt from "@/components/ModelArt";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
+// Картинка для соцсетей рисуется ~0,3 с процессора, а запрашивают её Telegram, VK и поисковики
+// при каждом показе ссылки. Готовые PNG и шрифты держим в памяти; браузерам и кешам — сутки.
+const g = globalThis;
+const pngCache = g.__lolaOg || (g.__lolaOg = new Map());
+const fontCache = g.__lolaOgFonts || (g.__lolaOgFonts = new Map());
+const PNG_MAX = 60;
+
 // Шрифт с кириллицей берётся из Google Fonts только для нужных символов.
 // Если сеть недоступна, картинка всё равно соберётся со шрифтом по умолчанию.
-async function font(family, weight, text) {
+function font(family, weight, text) {
+  const key = `${family}:${weight}:${text}`;
+  if (!fontCache.has(key)) fontCache.set(key, loadFont(family, weight, text).then(f => { if (!f) fontCache.delete(key); return f; }));
+  return fontCache.get(key);
+}
+async function loadFont(family, weight, text) {
   try {
     const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&text=${encodeURIComponent(text)}`)).text();
     const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
@@ -23,7 +35,20 @@ async function photoData(m) {
   catch { return null; }
 }
 
-export async function ogImage({ title, sub, chip, m }) {
+const HEADERS = { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" };
+
+export async function ogImage(args) {
+  const key = JSON.stringify([args.title, args.sub, args.chip, args.m?.photos?.[0] || args.m?.id || "", args.m?.color || ""]);
+  let png = pngCache.get(key);
+  if (!png) {
+    png = await (await renderOg(args)).arrayBuffer();
+    if (pngCache.size >= PNG_MAX) pngCache.delete(pngCache.keys().next().value);
+    pngCache.set(key, png);
+  }
+  return new Response(png, { headers: HEADERS });
+}
+
+async function renderOg({ title, sub, chip, m }) {
   const photo = await photoData(m);
   const text = "lola.stl" + title + sub + chip;
   const [disp, body] = await Promise.all([font("Unbounded", 700, text), font("Manrope", 600, text)]);

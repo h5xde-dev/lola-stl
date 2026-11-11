@@ -1,5 +1,4 @@
 import ModelView from "@/components/ModelView";
-import ClientModel from "@/components/ClientModel";
 import { notFound } from "next/navigation";
 import JsonLd from "@/lib/jsonld";
 import { catOf, kindGen, kindName } from "@/lib/models";
@@ -9,7 +8,10 @@ import { productLd } from "@/lib/schema";
 import { boxPrice, paidPrice } from "@/lib/pricing";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
+// Пустой список: страницы не собираются при сборке образа, а рендерятся при первом запросе
+// и дальше отдаются из кеша (ISR) до сохранения в админке или 5 минут.
+export async function generateStaticParams() { return []; }
 
 
 export async function generateMetadata({ params }) {
@@ -40,11 +42,10 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function ModelPage({ params, searchParams }) {
+export default async function ModelPage({ params }) {
   const { slug } = await params;
   const m = await getModel(slug);
-  // Модели, добавленные в админке прототипа, живут только в браузере: их показывает клиент.
-  if (!m) { if ((await searchParams).local) return <ClientModel slug={slug} />; notFound(); }
+  if (!m) notFound();
   const url = `${SITE_URL}/models/${m.slug}`;
   const prices = await getPrices();
   const price = m.cat === "box" ? boxPrice(prices, 1, false) : paidPrice(prices, 1);

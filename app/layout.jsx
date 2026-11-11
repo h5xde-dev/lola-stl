@@ -32,8 +32,9 @@ export const metadata = {
 
 export const viewport = { themeColor: "#090713", colorScheme: "dark", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
-// Каталог, цены и акция читаются из базы при каждом запросе и передаются в браузер.
-export const dynamic = "force-dynamic";
+// Каталог, цены и акция читаются из базы и передаются в браузер. Готовый HTML кешируется (ISR):
+// каталог одинаковый для всех, корзина и покупки работают в браузере. Сохранение в админке сбрасывает кеш.
+export const revalidate = 300;
 
 export default async function RootLayout({ children }) {
   const initial = await publicState();
