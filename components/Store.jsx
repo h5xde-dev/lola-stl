@@ -52,9 +52,6 @@ export function StoreProvider({ initial, children }) {
     } catch {}
     setReady(true);
     loadMe();
-    // Вход из Telegram Mini App: Telegram передаёт подписанные данные в адресе страницы
-    const tgData = new URLSearchParams(location.hash.slice(1)).get("tgWebAppData");
-    if (tgData) api("/api/tg/auth", { method: "POST", body: JSON.stringify({ initData: tgData }) }).then(r => { if (r.ok) { setS(p => ({ ...p, mode: "tg" })); loadMe(); } });
   }, [loadMe]);
   useEffect(() => {
     if (!ready) return;

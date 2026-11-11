@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useServerQuote, useStore } from "./Store";
 import Effects from "./Effects";
+import TelegramBridge from "./TelegramBridge";
 import { fmtDay, models, rub } from "@/lib/format";
 import { categoryHref } from "@/lib/models";
 
@@ -98,6 +99,7 @@ export default function Shell({ children, demo = true }) {
   return (
     <div className={cls}>
       {!adm && <Effects />}
+      <TelegramBridge />
       <ProtoBar demo={demo} />
       <div className="stage">
         <div className="shell">

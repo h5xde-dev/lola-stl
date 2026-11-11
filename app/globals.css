@@ -1085,3 +1085,11 @@ body { background: var(--bg); }
 .spinner { display: inline-block; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) { .save-state { margin-top: 0; } }
+
+/* Настоящий Telegram: свой заголовок и кнопка «Назад» у Telegram, рамка телефона не нужна */
+.tg-real .tg .stage { padding: 0; }
+.tg-real .tg .shell { max-width: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+.tg-real .tg-head { display: none !important; }
+.tg-real .tg .tg-main { padding-bottom: calc(12px + var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
+.tg-real body { overscroll-behavior: none; }
+.tg .hero-wrap .hero { padding: 20px 14px 8px; }
