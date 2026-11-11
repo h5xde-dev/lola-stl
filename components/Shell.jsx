@@ -1,10 +1,21 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import { Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useStore } from "./Store";
-import { models, rub } from "@/lib/format";
+import { fmtDay, models, rub } from "@/lib/format";
 
 const DEMO = process.env.NEXT_PUBLIC_DEMO !== "off";
+
+export function Brand({ sub = "STL-МОДЕЛИ ДЛЯ ПЕЧАТИ", href = "/" }) {
+  return (
+    <Link href={href} className="brand" aria-label="lola.stl — на главную">
+      <span className="brand-mark" aria-hidden="true">L</span>
+      <span>lola<span className="brand-dot">.stl</span>{sub && <small>{sub}</small>}</span>
+    </Link>
+  );
+}
 
 function ProtoBar() {
   const { s, set, promo, reset, toast } = useStore();
@@ -25,9 +36,45 @@ function ProtoBar() {
         </div>
         <Link href="/admin" className="link-btn" style={{ color: "var(--ink)", fontWeight: 700 }}>Открыть админку</Link>
         <button type="button" className="link-btn" onClick={reset}>Сбросить демо</button>
-        <span className="proto-note">Магазин и админка работают с одними данными: правки сразу видны в каталоге и корзине.</span>
+        <span className="proto-note">Магазин и админка работают с одними данными.</span>
       </div>
     </div>
+  );
+}
+
+function Announcement() {
+  const { s, promo } = useStore();
+  return promo
+    ? <div className="announcement promo"><Sparkles size={14} aria-hidden="true" /> Акция «1+1»: к каждой оплаченной модели одна в подарок <span className="dim">—</span> <span className="tail">до {fmtDay(s.promoEnd)}</span></div>
+    : <div className="announcement"><Sparkles size={14} aria-hidden="true" /> Модели для тех, кто любит создавать <span className="dim">—</span> <span className="tail">файлы сразу после оплаты</span></div>;
+}
+
+const NAV = [["all", "Каталог"], ["plant", "Кашпо"], ["box", "Боксы"], ["new", "Новинки"]];
+
+function Header() {
+  const { s, set, Q } = useStore();
+  const path = usePathname();
+  const [open, setOpen] = useState(false);
+  const home = path === "/";
+  return (
+    <header className="site-header site-only">
+      <div className="wrap header-in">
+        <button type="button" className="icon-btn mobile-menu" aria-label={open ? "Закрыть меню" : "Открыть меню"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button>
+        <Brand />
+        <nav className={open ? "main-nav nav-open" : "main-nav"} aria-label="Основная навигация">
+          {NAV.map(([k, t]) => (
+            <Link key={k} href="/#catalog" aria-current={home && s.filter === k ? "page" : undefined} onClick={() => { set({ filter: k, q: "" }); setOpen(false); }}>{t}</Link>
+          ))}
+        </nav>
+        <div className="header-actions">
+          <Link href="/purchases" className="header-link" aria-current={path === "/purchases" ? "page" : undefined}>Мои покупки</Link>
+          <Link href="/cart" className="bag-link" aria-label={`Корзина: ${models(Q.count)}${Q.count ? ", " + rub(Q.total) : ""}`}>
+            <ShoppingBag size={19} aria-hidden="true" /><span>Корзина</span><b className={Q.count ? "on" : ""}>{Q.count}</b>
+            {Q.count > 0 && <span className="sum">{rub(Q.total)}</span>}
+          </Link>
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -40,43 +87,34 @@ function TgMainButton() {
   else if (path === "/cart") { label = `Оформить · ${rub(Q.total)}`; go = () => router.push("/checkout"); }
   else if (path === "/checkout") { label = `Оплатить ${rub(Q.total)}`; go = () => document.getElementById("coForm")?.requestSubmit(); }
   if (!label) return null;
-  return <div className="tg-main tg-only"><button type="button" className="btn primary block" onClick={go}>{label}</button></div>;
+  return <div className="tg-main tg-only"><button type="button" className="button button-dark full" onClick={go}>{label}</button></div>;
 }
 
 export default function Shell({ children }) {
-  const { s, Q, toast, toastMsg } = useStore();
+  const { s, toast, toastMsg } = useStore();
   const path = usePathname();
   const adm = path.startsWith("/admin");
   const cls = [s.mode === "tg" && !adm ? "tg" : "", adm ? "is-admin" : ""].join(" ").trim();
-  const cur = p => (p === "/" ? path === "/" || path.startsWith("/models/") : path === p) ? "page" : undefined;
 
   return (
     <div className={cls}>
       <ProtoBar />
       <div className="stage">
         <div className="shell">
-          <header className="site-head site-only">
-            <div className="wrap head-in">
-              <Link href="/" className="logo" aria-label="lola.stl — на главную">lola<span>.stl</span></Link>
-              <nav aria-label="Разделы">
-                <Link href="/" aria-current={cur("/")}>Каталог</Link>
-                <Link href="/purchases" aria-current={cur("/purchases")}>Мои покупки</Link>
-              </nav>
-              <Link href="/cart" className="cart-btn">
-                Корзина <span className="count">{Q.count}</span>{Q.count ? <span className="num">{rub(Q.total)}</span> : null}
-              </Link>
-            </div>
-          </header>
+          {!adm && <div className="site-only"><Announcement /></div>}
+          <Header />
           <div className="tg-head tg-only">
             <button type="button" className="tg-x" onClick={() => toast("В Telegram эта кнопка закрывает мини-приложение.")}>Закрыть</button>
             <div className="tg-title"><b>lola.stl</b><small>мини-приложение</small></div>
             <Link href="/purchases" className="tg-x">Покупки</Link>
           </div>
           <main>{children}</main>
-          <footer className="site-foot site-only">
-            <div className="wrap foot-in">
-              <span>lola.stl · авторские STL-модели для 3D-печати</span>
-              <span>ИП [ФИО] · ИНН [—] · Оферта и лицензия · Политика обработки данных</span>
+          <footer className="site-footer site-only">
+            <div className="wrap footer-in">
+              <Brand sub="" />
+              <p>Файлы, которые превращаются в вещи.</p>
+              <div className="footer-links"><Link href="/">Каталог</Link><Link href="/purchases">Мои покупки</Link><Link href="/admin">Админ-панель</Link></div>
+              <small>© 2026 lola.stl · ИП [ФИО] · ИНН [—] · Оферта и лицензия · Политика обработки данных</small>
             </div>
           </footer>
           {!adm && <TgMainButton />}

@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
+import { Brand } from "./Shell";
 import { useStore } from "./Store";
 import { catName, slugify } from "@/lib/models";
 import { paidPrice, plantQuote } from "@/lib/pricing";
@@ -14,24 +16,24 @@ export function AdminShell({ children }) {
   const { s, promo } = useStore();
   const path = usePathname();
   const tab = path.startsWith("/admin/prices") ? "prices" : path.startsWith("/admin/orders") ? "orders" : "models";
-  const link = (href, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}>{t}<small>{n}</small></Link>;
+  const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
-    <>
-      <div className="adm-top"><div className="wrap adm-top-in">
-        <Link href="/admin" className="logo">lola<span>.stl</span></Link><span className="adm-tag">админка</span>
-        <Link href="/" className="btn">Открыть магазин</Link>
-      </div></div>
-      <div className="wrap adm">
-        <nav className="adm-nav" aria-label="Разделы админки">
-          {link("/admin", "Модели", live(s).length, "models")}
-          {link("/admin/prices", "Цены и акции", promo ? "1+1" : "2+1", "prices")}
-          {link("/admin/orders", "Заказы", s.orders.length, "orders")}
+    <div className="admin-page">
+      <aside className="admin-sidebar">
+        <Brand sub="АДМИН-ПАНЕЛЬ" href="/admin" />
+        <nav aria-label="Разделы админки">
+          {link("/admin", LayoutGrid, "Модели", live(s).length, "models")}
+          {link("/admin/orders", ReceiptText, "Заказы", s.orders.length, "orders")}
+          {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
         </nav>
-        <section className="adm-main">{children}</section>
-      </div>
-    </>
+        <Link href="/" className="back-store"><ArrowLeft size={14} /> На сайт</Link>
+      </aside>
+      <section className="admin-main">{children}</section>
+    </div>
   );
 }
+
+const Eyebrow = () => <span className="eyebrow">Магазин · управление</span>;
 
 export function AdminModels() {
   const { s, set, toast } = useStore();
@@ -46,7 +48,7 @@ export function AdminModels() {
   };
   return (
     <>
-      <div className="adm-h"><h1>Модели</h1><Link href="/admin/models/new" className="btn primary" style={{ textDecoration: "none" }}>Добавить модель</Link></div>
+      <div className="adm-h"><div><Eyebrow /><h1>Модели</h1></div><Link href="/admin/models/new" className="button button-dark"><Plus size={16} /> Добавить модель</Link></div>
       <div className="stat-row">
         <div className="stat"><span>В каталоге</span><b>{L.length - hid}</b></div>
         <div className="stat"><span>Скрыто</span><b>{hid}</b></div>
@@ -58,14 +60,14 @@ export function AdminModels() {
         <tbody>
           {list.length ? list.map(m => (
             <tr key={m.id} className={m.hidden ? "off" : ""}>
-              <td><div className="bed"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
+              <td><div className="thumb"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
               <td><b>{m.name}</b>{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
               <td>{catName(m.cat)}</td>
               <td className="r mono">{m.mb ? m.mb + " МБ" : "нет файла"}</td>
               <td className="r">{sales[m.id] || 0}</td>
               <td><label className="switch" title={m.mb ? "" : "Сначала загрузите STL-файл"}>
                 <input type="checkbox" checked={!m.hidden} disabled={!m.mb} onChange={e => pub(m, e.target.checked)} aria-label={`Показывать «${m.name}» в каталоге`} /><span className="track" /></label></td>
-              <td className="r"><Link href={`/admin/models/${m.id}`} className="mini-btn" style={{ textDecoration: "none" }}>Изменить</Link></td>
+              <td className="r"><Link href={`/admin/models/${m.id}`} className="mini-btn">Изменить</Link></td>
             </tr>
           )) : <tr><td colSpan={7} className="meta" style={{ padding: 20 }}>Ничего не нашлось.</td></tr>}
         </tbody>
@@ -147,10 +149,10 @@ export function AdminEditor({ id }) {
 
   return (
     <>
-      <div className="adm-h"><h1>{isNew ? "Новая модель" : d.name || "Модель"}</h1><Link href="/admin" className="btn" style={{ textDecoration: "none" }}>← К списку</Link></div>
+      <div className="adm-h"><div><span className="eyebrow">Модели · {isNew ? "новая" : "редактирование"}</span><h1>{isNew ? "Новая модель" : d.name || "Модель"}</h1></div><Link href="/admin" className="button button-outline"><ArrowLeft size={16} /> К списку</Link></div>
       <div className="editor">
         <div style={{ display: "grid", gap: 14, alignContent: "start", minWidth: 0 }}>
-          <div className="bed" style={{ cursor: "default", borderRadius: 14, overflow: "hidden" }}><ModelArt m={d} uid="ed" /></div>
+          <div className="editor-art"><ModelArt m={d} uid="ed" /></div>
           <div className="f"><span className="lbl">Фото</span>
             {hasPh ? <div className="photos">{d.photos.map((p, i) => (
               <span key={i}><img src={p} alt={`Фото ${i + 1}`} className={i ? "" : "cover"} />
@@ -203,7 +205,7 @@ export function AdminEditor({ id }) {
           </div>
           <div className="actions">
             <button type="button" className="btn primary" onClick={save}>{isNew ? "Добавить модель" : "Сохранить"}</button>
-            <Link href="/admin" className="btn" style={{ textDecoration: "none" }}>Отмена</Link>
+            <Link href="/admin" className="btn">Отмена</Link>
             {!isNew && <button type="button" className="btn danger" style={{ marginLeft: "auto" }} onClick={() => setConfirmDel(true)}>Удалить модель</button>}
           </div>
           {confirmDel && <div className="confirm"><span>Модель пропадёт из каталога и админки. Те, кто её уже купил, сохранят доступ к файлу.</span>
@@ -249,8 +251,8 @@ export function AdminPrices() {
 
   return (
     <>
-      <div className="adm-h"><h1>Цены и акции</h1><span className={"st" + (on ? "" : " off")}>Сейчас действует {on ? "«1+1»" : "«2+1»"}</span></div>
-      {issues.length > 0 && <div className="hint warn" style={{ borderColor: "var(--danger)", color: "var(--ink)" }}>Проверьте цены: {issues.join("; ")}.</div>}
+      <div className="adm-h"><div><Eyebrow /><h1>Цены и акции</h1></div><span className={"st" + (on ? "" : " off")}>Сейчас действует {on ? "«1+1»" : "«2+1»"}</span></div>
+      {issues.length > 0 && <div className="warn-box">Проверьте цены: {issues.join("; ")}.</div>}
       <section className="panel"><h2>Акция «1+1»</h2>
         <p className="panel-sub">За каждую оплаченную модель покупатель выбирает одну в подарок. «2+1» в это время не действует, боксы идут по цене акции.</p>
         <div className="actions">
@@ -298,7 +300,7 @@ export function AdminOrders() {
   const nm = id => byId[id] ? byId[id].name : id;
   return (
     <>
-      <div className="adm-h"><h1>Заказы</h1></div>
+      <div className="adm-h"><div><Eyebrow /><h1>Заказы</h1></div></div>
       <div className="stat-row">
         <div className="stat"><span>Заказов</span><b>{os.length}</b></div>
         <div className="stat"><span>Выручка</span><b>{rub(rev)}</b></div>
@@ -315,7 +317,7 @@ export function AdminOrders() {
             <td><span className="ch">{o.ch === "tg" ? "Telegram" : "Сайт"}</span></td>
             <td title={o.items.map(nm).join(", ")}>{models(o.items.length)}<div className="meta">{o.items.slice(0, 2).map(nm).join(", ")}{o.items.length > 2 ? "…" : ""}</div></td>
             <td className="r">{rub(o.total)}</td>
-            <td><span className="st">оплачен</span><div className="meta">чек отправлен</div></td>
+            <td><span className="status-pill">Оплачен</span><div className="meta">чек отправлен</div></td>
             <td className="r"><button type="button" className="mini-btn" onClick={() => toast(o.ch === "tg" ? `Бот повторно отправил ссылки ${o.tg} в Telegram` : `Ссылки повторно отправлены на ${o.email}`)}>Отправить ссылки ещё раз</button></td>
           </tr>))}</tbody>
       </table></div>

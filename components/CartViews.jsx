@@ -2,60 +2,83 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowLeft, ArrowRight, Download, Gift, Info, ShoppingBag, Sparkles, X } from "lucide-react";
 import ModelArt from "./ModelArt";
+import ProductCard from "./ProductCard";
 import { useStore } from "./Store";
-import { fmtDate, models, rub, zipMb } from "@/lib/format";
+import { fmtDate, fmtDay, models, rub, zipMb } from "@/lib/format";
 import { modelHref } from "@/lib/models";
 
-function Summary({ withBtn }) {
+function Summary({ title = "Ваш заказ", withBtn }) {
   const { s, Q, promo } = useStore();
   const pq = Q.pq;
-  let hint = null;
-  if (pq.free > 0) hint = <div className={"hint" + (promo ? " promo" : "")}><span>Можно выбрать ещё <b>{models(pq.free)}</b> бесплатно.</span><Link href="/">Выбрать подарок →</Link></div>;
-  else if (Q.plants.length) hint = <div className="hint warn">Следующая модель: {Q.nextPlant ? "+" + rub(Q.nextPlant) : "бесплатно"}.</div>;
   return (
-    <aside className="summary" aria-label="Итог">
+    <aside className="summary-card" aria-label="Итог">
+      <h2>{title}</h2>
+      <div className={"promo-now" + (promo ? " on" : "")}>
+        {promo ? <Gift size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
+        <span>{promo ? `Действует «1+1» до ${fmtDay(s.promoEnd)}` : "Действует «2+1»"}. Боксы считаются отдельно.</span>
+      </div>
       {Q.plants.length > 0 && <>
-        <div className="sum-line"><span>Кашпо и модели · {Q.plants.length}</span><span className="v">{rub(pq.price)}{pq.prov ? "*" : ""}</span></div>
-        <div className="sum-sub">{pq.P} оплач. + {pq.G} в подарок</div>
+        <div className="summary-row"><span>Кашпо и модели · {Q.plants.length}</span><b>{rub(pq.price)}{pq.prov ? "*" : ""}</b></div>
+        <div className="summary-sub">{pq.P} оплачиваемых <span className="gift-count">+ {pq.G} в подарок</span></div>
       </>}
       {Q.boxes.length > 0 && <>
-        <div className="sum-line"><span>Боксы · {Q.boxes.length}</span><span className="v">{rub(Q.bp)}</span></div>
-        <div className="sum-sub">{promo ? "по " + rub(s.prices.boxPromo) + " по акции" : "без подарков"}</div>
+        <div className="summary-row"><span>Боксы · {Q.boxes.length}</span><b>{rub(Q.bp)}</b></div>
+        <div className="summary-sub">{promo ? "по " + rub(s.prices.boxPromo) + " по акции" : "без подарков"}</div>
       </>}
-      {hint}
-      <div className="sum-total"><span>Итого</span><b>{rub(Q.total)}</b></div>
-      {Q.save > 0 && <div className="save">Выгода {rub(Q.save)} по сравнению с покупкой по одной</div>}
-      {withBtn && <Link href="/checkout" className="btn primary block site-only" style={{ textAlign: "center", textDecoration: "none" }}>Оформить заказ</Link>}
-      {pq.prov && <p className="note">* Цена за {s.prices.prov.join(", ")} оплачиваемых моделей предварительная и будет уточнена.</p>}
+      {pq.free > 0
+        ? <div className="summary-hint"><span>Можно выбрать ещё <b>{models(pq.free)}</b> бесплатно.</span><Link href="/#catalog">Выбрать подарок →</Link></div>
+        : Q.plants.length > 0 && <div className="summary-hint plain">Следующая модель: {Q.nextPlant ? "+" + rub(Q.nextPlant) : "бесплатно"}.</div>}
+      <div className="summary-total"><span>К оплате</span><strong>{rub(Q.total)}</strong></div>
+      {Q.save > 0 && <div className="summary-save">Выгода {rub(Q.save)} по сравнению с покупкой по одной</div>}
+      {withBtn && <Link href="/checkout" className="button button-dark full site-only">Перейти к оплате <ArrowRight size={17} /></Link>}
+      {pq.prov && <p className="price-warning">* Цена за {s.prices.prov.join(", ")} оплачиваемых моделей предварительная и будет уточнена.</p>}
+      {withBtn && <small className="summary-footnote">Файлы для скачивания появятся сразу после оплаты.</small>}
     </aside>
   );
 }
 
-function Row({ id, tag, gift }) {
+function Line({ id, tag, gift }) {
   const { byId, toggleCart } = useStore();
   const m = byId[id];
   return (
-    <div className="row">
-      <Link href={modelHref(m)} className="bed" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"r-" + id} /></Link>
-      <div className="row-t"><b>{m.name}</b><span className="meta">{m.mb} МБ · ZIP ≈ {zipMb(m)} МБ</span></div>
-      <div className="row-end"><span className={"tag" + (gift ? " gift" : "")}>{tag}</span><button type="button" className="x" onClick={() => toggleCart(id)}>Убрать</button></div>
+    <div className="cart-line">
+      <Link href={modelHref(m)} className="cart-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"r-" + id} /></Link>
+      <Link href={modelHref(m)} className="cart-line-name"><b>{m.name}</b><span>STL · {m.mb} МБ · ZIP ≈ {zipMb(m)} МБ</span></Link>
+      <span className={"line-tag" + (gift ? " gift" : "")}>{tag}</span>
+      <button type="button" className="remove-button" aria-label={`Убрать «${m.name}»`} onClick={() => toggleCart(id)}><X size={17} /></button>
     </div>
   );
 }
 
 export function CartView() {
   const { Q } = useStore();
-  if (!Q.count) return <div className="wrap page"><h1>Корзина</h1><div className="empty">Корзина пуста. <Link href="/">Перейти в каталог</Link></div></div>;
   return (
-    <div className="wrap page"><h1>Корзина</h1>
-      <div className="cols">
-        <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
-          {Q.plants.length > 0 && <section className="group"><h2>Кашпо и модели</h2>{Q.plants.map((id, i) => <Row key={id} id={id} tag={i < Q.pq.P ? "оплачиваемая" : "подарок"} gift={i >= Q.pq.P} />)}</section>}
-          {Q.boxes.length > 0 && <section className="group"><h2>Боксы</h2>{Q.boxes.map(id => <Row key={id} id={id} tag="бокс" />)}</section>}
+    <div className="inner-page">
+      <div className="page-title"><span className="eyebrow">Ваш выбор</span><h1>Корзина</h1><p>Проверьте, что войдёт в заказ. Подарки корзина отмечает сама.</p></div>
+      {!Q.count ? (
+        <div className="cart-empty">
+          <div className="empty-bag"><ShoppingBag size={28} /></div>
+          <h2>Пока здесь пусто</h2><p>Добавьте модели, которые хочется напечатать.</p>
+          <Link href="/#catalog" className="button button-dark">В каталог <ArrowRight size={16} /></Link>
         </div>
-        <Summary withBtn />
-      </div>
+      ) : (
+        <div className="cart-layout">
+          <div>
+            {Q.plants.length > 0 && <section className="cart-group" aria-label="Кашпо и модели">
+              <div className="cart-list-head"><span>КАШПО И МОДЕЛИ</span><span>{Q.pq.P} + {Q.pq.G}</span></div>
+              {Q.plants.map((id, i) => <Line key={id} id={id} tag={i < Q.pq.P ? "оплачиваемая" : "подарок"} gift={i >= Q.pq.P} />)}
+            </section>}
+            {Q.boxes.length > 0 && <section className="cart-group" aria-label="Боксы">
+              <div className="cart-list-head"><span>БОКСЫ</span><span>{Q.boxes.length}</span></div>
+              {Q.boxes.map(id => <Line key={id} id={id} tag="бокс" />)}
+            </section>}
+            <Link href="/#catalog" className="continue-link"><ArrowLeft size={15} /> Продолжить покупки</Link>
+          </div>
+          <Summary withBtn />
+        </div>
+      )}
     </div>
   );
 }
@@ -86,24 +109,31 @@ export function CheckoutView() {
   };
 
   return (
-    <div className="wrap page"><h1>Оформление</h1>
-      <div className="cols">
-        <form className="form" id="coForm" noValidate onSubmit={submit}>
-          <div className="idnote">{tg ? "Покупки привязаны к вашему Telegram-аккаунту. Email нужен только для чека." : "Без регистрации: покупки привязываются к email, туда же придут чек и ссылки на файлы."}</div>
-          <div className="field"><label htmlFor="email">Email для чека{tg ? "" : " и ссылок"}</label>
-            <input type="email" id="email" name="email" autoComplete="email" placeholder="name@mail.ru" defaultValue={s.email} />
-            {errors.email && <span className="err">{errors.email}</span>}</div>
-          <div className="field"><span className="lbl">Способ оплаты</span>
-            <div className="pay-opts">
-              <label className="pay-opt"><input type="radio" name="pm" value="СБП" defaultChecked /><span><b>СБП</b><small>по QR или из приложения банка</small></span></label>
-              <label className="pay-opt"><input type="radio" name="pm" value="Карта" /><span><b>Банковская карта</b><small>Мир, Visa, Mastercard российских банков</small></span></label>
-            </div></div>
-          <label className="check"><input type="checkbox" name="agree" /><span>Принимаю условия оферты и лицензии на использование моделей</span></label>
+    <div className="inner-page">
+      <nav className="breadcrumbs" aria-label="Навигация"><Link href="/cart">Корзина</Link><span aria-hidden="true">/</span><span aria-current="page">Оформление заказа</span></nav>
+      <div className="page-title"><span className="eyebrow">Последний шаг</span><h1>Оформление заказа</h1><p>Укажите почту — отправим чек и ссылки на файлы.</p></div>
+      <div className="checkout-layout">
+        <form className="checkout-form" id="coForm" noValidate onSubmit={submit}>
+          <h2>Контактные данные</h2>
+          <div className="id-note"><Info size={16} aria-hidden="true" />{tg ? "Покупки привязаны к вашему Telegram-аккаунту. Email нужен только для чека." : "Без регистрации: покупки привязываются к email, туда же придут чек и ссылки на файлы."}</div>
+          <label className="form-label">Email для чека{tg ? "" : " и ссылок"}
+            <input type="email" name="email" autoComplete="email" placeholder="name@mail.ru" defaultValue={s.email} aria-invalid={!!errors.email} />
+            {errors.email && <span className="err">{errors.email}</span>}
+          </label>
+          <h2 className="payment-title">Способ оплаты</h2>
+          <div className="pay-opts" role="radiogroup" aria-label="Способ оплаты">
+            <label className="payment-option"><input type="radio" name="pm" value="СБП" defaultChecked /><span className="payment-icon">⚡</span><span><b>СБП</b><small>По QR-коду или из приложения банка</small></span><span className="radio-dot" /></label>
+            <label className="payment-option"><input type="radio" name="pm" value="Карта" /><span className="payment-icon">₽</span><span><b>Банковская карта</b><small>Мир, Visa, Mastercard российских банков</small></span><span className="radio-dot" /></label>
+          </div>
+          <label className="check-row"><input type="checkbox" name="agree" /><span>Принимаю условия оферты и лицензии на использование моделей</span></label>
           {errors.agree && <span className="err">{errors.agree}</span>}
-          <button type="submit" className="btn primary block site-only">Оплатить {rub(Q.total)}</button>
-          <p className="note">Оплата проходит на защищённой странице платёжного сервиса. После оплаты файлы откроются автоматически.</p>
+          <button type="submit" className="button button-dark full site-only">Оплатить {rub(Q.total)} <ArrowRight size={17} /></button>
+          <p className="terms-note">Оплата проходит на защищённой странице платёжного сервиса.</p>
         </form>
-        <Summary />
+        <div>
+          <Summary title="В заказе" />
+          <div className="digital-note"><Download size={17} aria-hidden="true" /><span>Файлы STL будут доступны сразу после подтверждения оплаты и останутся в «Моих покупках».</span></div>
+        </div>
       </div>
       {paying && (
         <div className="paywall" role="dialog" aria-modal="true" aria-label="Оплата">
@@ -112,8 +142,8 @@ export function CheckoutView() {
             <span>Заказ в магазине lola.stl</span>
             <b className="amt">{rub(Q.total)}</b>
             <span className="note">В настоящем магазине здесь откроется страница ЮKassa или другого сервиса. Деньги поступят на расчётный счёт ИП, чек уйдёт на email.</span>
-            <button type="button" className="btn primary block" onClick={paid}>Оплатить</button>
-            <button type="button" className="btn block" onClick={() => setPaying(null)}>Отменить</button>
+            <button type="button" className="button button-dark full" onClick={paid}>Оплатить</button>
+            <button type="button" className="button button-outline full" onClick={() => setPaying(null)}>Отменить</button>
           </div>
         </div>
       )}
@@ -123,32 +153,47 @@ export function CheckoutView() {
 
 export function PurchasesView() {
   const { s, byId, toast, flash } = useStore();
+  const [tab, setTab] = useState("orders");
   const tg = s.mode === "tg";
   const orders = s.orders.filter(o => o.own).sort((a, b) => b.date - a.date);
+  const favs = (s.favs || []).map(id => byId[id]).filter(m => m && !m.deleted && !m.hidden);
   const now = Date.now();
   return (
-    <div className="wrap page"><h1>Мои покупки</h1>
-      <div className="idnote">{tg ? "Вы вошли через Telegram. Бот также присылает ссылки в чат после каждой оплаты." : "На сайте покупки открываются по ссылке из письма. Можно войти через Telegram, тогда здесь будут и покупки из мини-приложения."}</div>
-      {orders.length ? orders.map(o => {
+    <div className="inner-page">
+      <div className="page-title"><span className="eyebrow">Ваша коллекция</span><h1>Мои покупки</h1><p>Библиотека моделей, которые уже готовы к печати.</p></div>
+      <div className="account-banner">
+        <div className="account-avatar" aria-hidden="true">L</div>
+        <div><b>{tg ? "Вы вошли через Telegram" : "Ваша библиотека"}</b>
+          <p>{tg ? "Бот также присылает ссылки в чат после каждой оплаты." : "Покупки открываются по ссылке из письма. Файлы можно скачать повторно."}</p></div>
+        <Link href="/#catalog" className="text-link">В каталог <ArrowRight size={16} /></Link>
+      </div>
+      <div className="account-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === "orders"} onClick={() => setTab("orders")}>Покупки<small>{orders.length}</small></button>
+        <button type="button" role="tab" aria-selected={tab === "favs"} onClick={() => setTab("favs")}>Избранное<small>{favs.length}</small></button>
+      </div>
+
+      {tab === "favs" ? (
+        favs.length ? <div className="product-grid fav-grid">{favs.map(m => <ProductCard key={m.id} m={m} />)}</div>
+          : <div className="empty-state" style={{ marginTop: 26 }}>Отмечайте понравившиеся модели сердцем — они появятся здесь.</div>
+      ) : orders.length ? orders.map(o => {
         const exp = Math.max(o.date, now - 6 * 36e5) + 864e5;
         return (
-          <article key={o.id} className={"order" + (flash === o.id ? " flash" : "")}>
-            <div className="order-h">
-              <div><b>Заказ {o.id}</b>{o.sample && <> <span className="tag">пример</span></>}<p className="meta">{fmtDate(o.date)} · {models(o.items.length)} · {rub(o.total)} · {o.method}</p></div>
-              <button type="button" className="btn" onClick={() => toast("В магазине здесь скачается один ZIP со всеми моделями заказа.")}>Скачать всё одним архивом</button>
+          <section key={o.id} className={"order-block" + (flash === o.id ? " flash" : "")} aria-label={`Заказ ${o.id}`}>
+            <div className="order-head">
+              <div><b>Заказ {o.id}</b>{o.sample && <span className="sample-tag">пример</span>}<span>{fmtDate(o.date)} · {models(o.items.length)} · {rub(o.total)} · {o.method}</span></div>
+              <button type="button" className="download-button" onClick={() => toast("В магазине здесь скачается один ZIP со всеми моделями заказа.")}><Download size={16} /> Скачать всё архивом</button>
             </div>
-            <div className="files">
-              {o.items.filter(id => byId[id]).map(id => { const m = byId[id]; return (
-                <div className="file" key={id}>
-                  <Link href={modelHref(m)} className="bed" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"o-" + o.id + id} /></Link>
-                  <div className="row-t"><b>{m.name}</b><span className="meta">{m.slug}.zip · {zipMb(m)} МБ</span></div>
-                  <button type="button" className="btn" onClick={() => toast(`В прототипе файл не скачивается. В магазине откроется личная ссылка на «${m.name}».`)}>Скачать</button>
-                </div>); })}
-            </div>
-            <div className="order-f"><span>Ссылки действуют до {fmtDate(exp)}. Потом их можно обновить здесь же, бесплатно.</span><span>Чек отправлен на {o.email}</span></div>
-          </article>
+            {o.items.filter(id => byId[id]).map(id => { const m = byId[id]; return (
+              <div className="library-item" key={id}>
+                <Link href={modelHref(m)} className="library-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"o-" + o.id + id} /></Link>
+                <div><b>{m.name}</b><span>{m.slug}.zip · {zipMb(m)} МБ</span></div>
+                <button type="button" className="download-button" aria-label={`Скачать «${m.name}»`} onClick={() => toast(`В прототипе файл не скачивается. В магазине откроется личная ссылка на «${m.name}».`)}><Download size={16} /><span>Скачать STL</span></button>
+              </div>); })}
+            <div className="order-foot"><span>Ссылки действуют до {fmtDate(exp)}, потом их можно бесплатно обновить здесь.</span><span>Чек отправлен на {o.email}</span></div>
+          </section>
         );
-      }) : <div className="empty">Покупок пока нет. <Link href="/">Перейти в каталог</Link></div>}
+      }) : <div className="empty-state" style={{ marginTop: 26 }}>Покупок пока нет. <Link href="/#catalog">Перейти в каталог</Link></div>}
+      <p className="account-demo-note">Заказы с пометкой «пример» вымышленные: после запуска здесь будут только ваши покупки.</p>
     </div>
   );
 }

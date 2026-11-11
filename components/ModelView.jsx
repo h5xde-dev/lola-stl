@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { ArrowRight, Check, Gift, PenTool, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
-import ProductCard, { PriceLine, useOffer } from "./ProductCard";
+import ProductCard, { FavButton, useOffer } from "./ProductCard";
 import { useStore } from "./Store";
 import { catName, related } from "@/lib/models";
 import { paidPrice } from "@/lib/pricing";
@@ -13,34 +14,44 @@ import { rub, zipMb } from "@/lib/format";
 export default function ModelView({ initial }) {
   const { s, byId, toggleCart, promo } = useStore();
   const m = byId[initial.id] && !byId[initial.id].deleted ? { ...initial, ...byId[initial.id] } : initial;
-  const { inCart, gift } = useOffer(m);
+  const { inCart, gift, cost, hasSame } = useOffer(m);
   const [shot, setShot] = useState(0);
   const photos = m.photos || [];
   const pr = s.prices;
   const rel = related(s.models, m, 4);
   const isBox = m.cat === "box";
 
+  const giftText = isBox
+    ? { b: "Боксы считаются отдельно", t: (promo ? `По акции любой бокс ${rub(pr.boxPromo)}. ` : `Один бокс ${rub(pr.box[1])}, от 4 штук ${rub(pr.box4)} за каждый. `) + "Подарки на боксы не действуют." }
+    : promo
+      ? { b: "Акция «1+1»", t: `К каждой оплаченной модели одна в подарок. Одна модель ${rub(paidPrice(pr, 1))}.` }
+      : { b: "Подарок по «2+1»", t: `Возьмите две модели за ${rub(paidPrice(pr, 2))}, и третья будет бесплатно.` };
+
   return (
-    <div className="wrap page product">
-      <nav className="crumbs" aria-label="Навигация">
+    <div className="inner-page">
+      <nav className="breadcrumbs" aria-label="Навигация">
         <Link href="/">Каталог</Link><span aria-hidden="true">/</span>
         <span>{isBox ? "Боксы" : "Кашпо"}</span><span aria-hidden="true">/</span>
         <span aria-current="page">{m.name}</span>
       </nav>
 
-      <div className="pdp">
+      <div className="product-detail">
         <div className="gallery">
-          <div className="bed big">
-            {shot === 0 || !photos[shot - 1] ? <ModelArt m={m} uid={"p-" + m.id} photo={false} /> : <img src={photos[shot - 1]} alt={`${m.name}, фото ${shot}`} />}
-            <span className="badges">
-              {m.isNew && <span className="badge new">Новинка</span>}
-              {m.vase && <span className="badge">Режим вазы</span>}
+          <div className="product-image-link">
+            <div className="detail-image">
+              {shot === 0 || !photos[shot - 1] ? <ModelArt m={m} uid={"p-" + m.id} photo={false} /> : <img src={photos[shot - 1]} alt={`${m.name}, фото ${shot}`} />}
+            </div>
+            <span className="product-tags">
+              {m.isNew && <span className="product-tag new">Новинка</span>}
+              {m.vase && <span className="product-tag">Режим вазы</span>}
+              {!m.isNew && !m.vase && <span className="product-tag">STL-модель</span>}
             </span>
+            <FavButton m={m} />
           </div>
           {photos.length > 0 && (
             <div className="thumbs" role="group" aria-label="Изображения">
               {[null, ...photos].map((p, i) => (
-                <button key={i} type="button" className="bed" aria-pressed={shot === i} aria-label={i ? `Фото ${i}` : "Схема модели"} onClick={() => setShot(i)}>
+                <button key={i} type="button" aria-pressed={shot === i} aria-label={i ? `Фото ${i}` : "Схема модели"} onClick={() => setShot(i)}>
                   {p ? <img src={p} alt="" /> : <ModelArt m={m} uid={"t-" + m.id} photo={false} />}
                 </button>
               ))}
@@ -49,40 +60,47 @@ export default function ModelView({ initial }) {
           {!photos.length && <p className="note">Фото готовых отпечатков владелец загружает в админке. Пока вместо фото показана схема модели.</p>}
         </div>
 
-        <div className="pdp-b">
-          <span className="kind">{catName(m.cat)}{m.isNew ? " · новинка" : ""}</span>
+        <div className="detail-copy">
+          <span className="eyebrow">{catName(m.cat)} · цифровая модель{m.isNew ? " · новинка" : ""}</span>
           <h1>{m.name}</h1>
-          {m.desc && <p className="lead">{m.desc}</p>}
+          <div className="detail-author"><PenTool size={14} aria-hidden="true" /> Авторская модель lola.stl</div>
 
-          <div className={"buy" + (promo ? " promo" : "")}>
-            <div className="buy-p"><PriceLine m={m} /></div>
-            <button type="button" className={"btn primary block" + (inCart ? " ghost" : "")} onClick={() => toggleCart(m.id)}>
-              {inCart ? "Убрать из корзины" : gift ? "Взять в подарок" : "Добавить в корзину"}
-            </button>
-            {inCart && <Link href="/cart" className="btn block" style={{ textAlign: "center", textDecoration: "none" }}>Перейти в корзину</Link>}
-            <p className="note">
-              {isBox
-                ? (promo ? `По акции любой бокс ${rub(pr.boxPromo)}. ` : `Один бокс ${rub(pr.box[1])}, от 4 штук ${rub(pr.box4)} за каждый. `) + "Подарки на боксы не действуют."
-                : promo
-                  ? `Акция «1+1»: к каждой оплаченной модели одна в подарок. Одна модель ${rub(paidPrice(pr, 1))}.`
-                  : `Одна модель ${rub(paidPrice(pr, 1))}. Возьмите две за ${rub(paidPrice(pr, 2))}, и третья будет в подарок.`}
-            </p>
+          {inCart
+            ? <div className="detail-price in"><Check size={20} aria-hidden="true" /> В корзине</div>
+            : gift || cost === 0
+              ? <div className="detail-price gift">0 ₽ <small>пойдёт в подарок</small></div>
+              : <div className="detail-price">{hasSame ? "+" : ""}{rub(cost)} {hasSame && <small>к сумме заказа</small>}</div>}
+
+          {m.desc && <p>{m.desc}</p>}
+
+          <dl className="detail-specs">
+            <div className="detail-spec"><dt>Формат файла</dt><dd>STL · {m.mb} МБ</dd></div>
+            <div className="detail-spec"><dt>Архив для скачивания</dt><dd>ZIP ≈ {zipMb(m)} МБ</dd></div>
+            <div className="detail-spec"><dt>Размер после печати</dt><dd>{m.dims || "—"}</dd></div>
+            <div className="detail-spec"><dt>Печать</dt><dd>{m.print || "—"}</dd></div>
+            <div className="detail-spec"><dt>Лицензия</dt><dd>личное использование и продажа отпечатков</dd></div>
+            <div className="detail-spec"><dt>Доставка</dt><dd>сразу после оплаты</dd></div>
+          </dl>
+
+          <div className={"gift-note" + (promo && !isBox ? " on" : "")}>
+            {isBox ? <Sparkles size={20} aria-hidden="true" /> : <Gift size={20} aria-hidden="true" />}
+            <span><b>{giftText.b}</b><small>{giftText.t}</small></span>
           </div>
 
-          <dl className="specs">
-            <div><dt>Файл</dt><dd>STL, {m.mb} МБ (ZIP ≈ {zipMb(m)} МБ)</dd></div>
-            <div><dt>Размер</dt><dd>{m.dims || "—"}</dd></div>
-            <div><dt>Печать</dt><dd>{m.print || "—"}</dd></div>
-            <div><dt>Лицензия</dt><dd>личное использование и продажа отпечатков</dd></div>
-            <div><dt>Доставка</dt><dd>ссылка сразу после оплаты, в письме и в «Моих покупках»</dd></div>
-          </dl>
+          <div className="detail-actions">
+            <button type="button" className={"button full " + (inCart ? "button-outline" : gift ? "button-gift" : "button-dark")} onClick={() => toggleCart(m.id)}>
+              {inCart ? "Убрать из корзины" : gift ? <><Gift size={17} /> Взять в подарок</> : <>Добавить в корзину <ArrowRight size={17} /></>}
+            </button>
+            {inCart && <Link href="/cart" className="button button-dark full">Перейти в корзину <ArrowRight size={17} /></Link>}
+          </div>
+          <p className="secure-note">Файлы останутся в «Моих покупках», их можно скачать повторно.</p>
         </div>
       </div>
 
       {rel.length > 0 && (
-        <section className="related" aria-labelledby="rel-h">
-          <h2 id="rel-h">Похожие модели</h2>
-          <div className="grid">{rel.map(r => <ProductCard key={r.id} m={r} />)}</div>
+        <section className="related-section" aria-labelledby="rel-h">
+          <div className="section-heading"><div><span className="eyebrow">Похожие модели</span><h2 id="rel-h">Продолжите коллекцию</h2></div></div>
+          <div className="product-grid">{rel.map(r => <ProductCard key={r.id} m={r} />)}</div>
         </section>
       )}
     </div>
