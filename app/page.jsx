@@ -2,15 +2,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, Download, Gift, MailCheck } from "lucide-react";
 import Catalog from "@/components/Catalog";
+import Hero3D from "@/components/Hero3D";
 import JsonLd from "@/lib/jsonld";
 import { getModels } from "@/lib/models";
 import { SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/site";
-import heroImg from "@/public/images/hero-neon.jpg";
-import editorialImg from "@/public/images/editorial.jpg";
+import glubina from "@/public/images/works/glubina.jpg";
+import romashki from "@/public/images/works/romashki.jpg";
+import grani from "@/public/images/works/grani.jpg";
+import puzyri from "@/public/images/works/puzyri.jpg";
+import korall from "@/public/images/works/korall.jpg";
+import rassada9 from "@/public/images/works/rassada-9.jpg";
+import leopard from "@/public/images/works/rassada-leopard.jpg";
 
 // Страница собирается на сервере при каждом запросе: каталог берётся из getModels(),
 // поэтому после подключения базы новые модели появятся без пересборки.
 export const dynamic = "force-dynamic";
+
+const GALLERY = [
+  { img: puzyri, cls: "tall", tag: "Пара кашпо", text: "Пузырьковая текстура", alt: "Два кашпо с пузырьковой текстурой в сине-фиолетовом пластике" },
+  { img: rassada9, cls: "wide", tag: "Лоток", text: "Для рассады на 9 горшков", alt: "Лоток для рассады на девять горшков с точечной текстурой" },
+  { img: grani, cls: "tall", tag: "Кашпо", text: "Гранёная поверхность", alt: "Фиолетовое кашпо с гранёной поверхностью" },
+  { img: korall, cls: "", tag: "Пара кашпо", text: "Коралловый рельеф", alt: "Два кашпо с волнистым коралловым рельефом" },
+  { img: romashki, cls: "", tag: "Шёлковый PLA", text: "Кашпо с ромашками", alt: "Кашпо с рельефными ромашками в трёхцветном шёлковом пластике" },
+];
 
 export default async function Home() {
   const list = await getModels();
@@ -26,23 +40,36 @@ export default async function Home() {
         ],
       }} />
 
-      <section className="wrap hero">
-        <div className="hero-copy">
-          <span className="eyebrow hero-kicker"><span className="eyebrow-line" /> STL-модели для 3D-печати</span>
-          <h1>Кашпо, которых<br /><em>нет у других.</em></h1>
-          <p>Авторские модели для тех, кто печатает на продажу или для души. Отпечатки можно продавать. Файлы приходят сразу после оплаты, регистрация не нужна.</p>
-          <div className="hero-cta">
-            <Link href="#catalog" className="button button-dark">Выбрать модель <ArrowRight size={17} /></Link>
+      <section className="hero-wrap">
+        <Hero3D />
+        <div className="hero-veil" aria-hidden="true" />
+        <div className="wrap hero">
+          <div className="hero-copy">
+            <span className="eyebrow hero-kicker"><span className="eyebrow-line" /> STL-модели для 3D-печати</span>
+            <h1>Кашпо, которых<br /><em>нет у других</em></h1>
+            <p>Авторские модели для тех, кто печатает на продажу или для души. Отпечатки можно продавать. Файлы приходят сразу после оплаты, регистрация не нужна.</p>
+            <div className="hero-cta">
+              <Link href="#catalog" className="button button-dark">Выбрать модель <ArrowRight size={17} /></Link>
+              <Link href="#works" className="button button-outline">Смотреть отпечатки</Link>
+            </div>
+            <div className="hero-note">
+              <span className="hero-avatar" aria-hidden="true">L</span>
+              <span><b>Каждая модель проверена печатью</b><small>Около 130 моделей, каталог пополняется</small></span>
+            </div>
           </div>
-          <div className="hero-note">
-            <span className="hero-avatar" aria-hidden="true">L</span>
-            <span><b>Каждая модель проверена печатью</b><small>Около 130 моделей, каталог пополняется</small></span>
+          <div className="hero-collage">
+            <figure className="shot main">
+              <Image src={glubina} alt="Напечатанное кашпо «Глубина» с щупальцами в бирюзово-розовом шёлковом пластике" priority sizes="(max-width: 640px) 80vw, 34vw" placeholder="blur" />
+            </figure>
+            <figure className="shot side s1">
+              <Image src={romashki} alt="Кашпо с рельефными ромашками" sizes="(max-width: 640px) 36vw, 14vw" placeholder="blur" />
+            </figure>
+            <figure className="shot side s2">
+              <Image src={grani} alt="Гранёное фиолетовое кашпо" sizes="(max-width: 640px) 36vw, 14vw" placeholder="blur" />
+            </figure>
+            <div className="hero-caption" aria-hidden="true"><span>КОЛЛЕКЦИЯ № 01</span><strong>Неоновая серия</strong><ArrowDown size={18} /></div>
+            <div className="hero-stamp" aria-hidden="true">СОЗДАНО<br />ДЛЯ ПЕЧАТИ</div>
           </div>
-        </div>
-        <div className="hero-art">
-          <div className="hero-photo"><Image src={heroImg} alt="Напечатанное кашпо «Глубина» с щупальцами в бирюзово-розовом пластике" priority sizes="(max-width: 640px) 100vw, 50vw" placeholder="blur" /></div>
-          <div className="hero-caption" aria-hidden="true"><span>КОЛЛЕКЦИЯ № 01</span><strong>Неоновая<br />серия</strong><ArrowDown size={18} /></div>
-          <div className="hero-stamp" aria-hidden="true">СОЗДАНО<br />ДЛЯ ПЕЧАТИ</div>
         </div>
       </section>
 
@@ -54,6 +81,21 @@ export default async function Home() {
         </section>
       </div>
 
+      <section className="wrap section works" id="works" aria-labelledby="works-h" style={{ scrollMarginTop: 90 }}>
+        <div className="section-heading">
+          <div><span className="eyebrow">Из мастерской</span><h2 id="works-h">Так модели выглядят после печати</h2></div>
+          <Link href="#catalog" className="text-link">К моделям <ArrowRight size={16} /></Link>
+        </div>
+        <div className="gallery-grid">
+          {GALLERY.map(g => (
+            <figure key={g.text} className={"g-item " + g.cls}>
+              <Image src={g.img} alt={g.alt} sizes="(max-width: 640px) 50vw, 25vw" placeholder="blur" />
+              <figcaption><span>{g.tag}</span>{g.text}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
       <section className="wrap section" id="catalog" style={{ scrollMarginTop: 90 }}>
         <div className="section-heading">
           <div><span className="eyebrow">Каталог моделей</span><h2>Найдите свою форму</h2></div>
@@ -63,10 +105,10 @@ export default async function Home() {
 
       <div className="wrap">
         <section className="editorial" aria-labelledby="how-h">
-          <div className="editorial-image"><Image src={editorialImg} alt="Скульптурная форма, напечатанная на 3D-принтере" sizes="(max-width: 640px) 100vw, 50vw" placeholder="blur" /></div>
+          <div className="editorial-image"><Image src={leopard} alt="Ящик для рассады с леопардовой текстурой под фитолампой" sizes="(max-width: 640px) 100vw, 50vw" placeholder="blur" /></div>
           <div className="editorial-copy">
             <span className="eyebrow">Как это работает</span>
-            <h2 id="how-h">От файла —<br />к любимой вещи.</h2>
+            <h2 id="how-h">От файла — к любимой вещи</h2>
             <ol className="steps">
               <li><b>Выберите модели</b><span>Корзина сама посчитает подарки и итоговую цену.</span></li>
               <li><b>Оплатите картой или по СБП</b><span>Чек придёт на email. Аккаунт создавать не нужно.</span></li>

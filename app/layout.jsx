@@ -1,11 +1,11 @@
-import { Manrope, PT_Serif, JetBrains_Mono } from "next/font/google";
+import { Manrope, Unbounded, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/components/Store";
 import Shell from "@/components/Shell";
 import { INDEXING, SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], weight: ["400", "500", "600", "700"], variable: "--font-manrope", display: "swap" });
-const serif = PT_Serif({ subsets: ["latin", "cyrillic"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-serif", display: "swap" });
+const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], weight: ["400", "500", "700"], variable: "--font-unbounded", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin", "cyrillic"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
 
 export const metadata = {
@@ -24,7 +24,7 @@ export const viewport = { themeColor: "#090713", colorScheme: "dark", width: "de
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru" className={`${manrope.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="ru" className={`${manrope.variable} ${unbounded.variable} ${mono.variable}`}>
       <body>
         <StoreProvider>
           <Shell>{children}</Shell>
