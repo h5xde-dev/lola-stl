@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { Search } from "lucide-react";
-import ProductCard from "./ProductCard";
+import ProductCard, { BundleCard } from "./ProductCard";
 import Tiers from "./Tiers";
 import { useStore } from "./Store";
 import { models } from "@/lib/format";
@@ -19,6 +19,7 @@ export default function Catalog({ category }) {
   const match = m => (category || filter === "all" || (filter === "new" ? m.isNew : m.category === filter)) &&
     (!q || m.name.toLowerCase().includes(q) || (m.tags || []).some(t => t.includes(q)));
   const list = pub.filter(match);
+  const sets = (s.bundles || []).filter(b => b.active && !b.deleted && b.items.some(id => all.some(m => m.id === id)));
   // ?q=… в адресе — поиск из строки поиска Google и Яндекса прямо в выдаче.
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("q");
@@ -35,6 +36,9 @@ export default function Catalog({ category }) {
           <input type="search" value={s.q} onChange={e => set({ q: e.target.value })} placeholder="Найти модель" aria-label="Найти модель" />
         </label>
       </div>
+      {!category && filter === "all" && !q && sets.length > 0 && (
+        <div className="bundle-row" aria-label="Наборы">{sets.map(b => <BundleCard key={b.id} b={b} />)}</div>
+      )}
       <div className="product-grid">
         {list.length ? list.map(m => <ProductCard key={m.id} m={m} />)
           : <div className="empty-state">Не нашли модель. Попробуйте другое название.</div>}

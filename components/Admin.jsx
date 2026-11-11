@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, FolderTree, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChevronDown, FolderTree, Layers, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { useStore } from "./Store";
 import { categoryHref, kindName, slugify } from "@/lib/models";
-import { paidPrice, plantQuote } from "@/lib/pricing";
+import { listPrice, paidPrice, plantQuote, quote, today } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
 const live = s => s.models.filter(m => !m.deleted);
@@ -15,7 +15,7 @@ const live = s => s.models.filter(m => !m.deleted);
 export function AdminShell({ children }) {
   const { s, promo, cats } = useStore();
   const path = usePathname();
-  const tab = path.startsWith("/admin/prices") ? "prices" : path.startsWith("/admin/orders") ? "orders" : path.startsWith("/admin/categories") ? "categories" : "models";
+  const tab = ["prices", "orders", "categories", "promo", "bundles"].find(t => path.startsWith("/admin/" + t)) || "models";
   const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
     <div className="admin-page">
@@ -26,6 +26,8 @@ export function AdminShell({ children }) {
           {link("/admin/categories", FolderTree, "Категории", cats.length, "categories")}
           {link("/admin/orders", ReceiptText, "Заказы", s.orders.length, "orders")}
           {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
+          {link("/admin/promo", BadgePercent, "Промокоды", (s.promoCodes || []).filter(c => !c.deleted && c.active).length, "promo")}
+          {link("/admin/bundles", Layers, "Наборы", (s.bundles || []).filter(b => !b.deleted && b.active).length, "bundles")}
         </nav>
         <Link href="/" className="back-store"><ArrowLeft size={14} /> На сайт</Link>
       </aside>
@@ -257,6 +259,19 @@ export function AdminPrices() {
     <>
       <div className="adm-h"><div><Eyebrow /><h1>Цены и акции</h1></div><span className={"st" + (on ? "" : " off")}>Сейчас действует {on ? "«1+1»" : "«2+1»"}</span></div>
       {issues.length > 0 && <div className="warn-box">Проверьте цены: {issues.join("; ")}.</div>}
+      <section className="panel"><h2>Скидка постоянным и скачивания</h2>
+        <p className="panel-sub">Скидка действует со второго оплаченного заказа того же email или Telegram-аккаунта. С промокодом не суммируется: покупатель получает большую из двух. На наборы не действует.</p>
+        <div className="actions">
+          <label className="switch"><input type="checkbox" checked={!!s.loyalty?.on} onChange={e => set(p => ({ loyalty: { ...p.loyalty, on: e.target.checked } }))} /><span className="track" />Скидка постоянным</label>
+        </div>
+        <div className="price-grid">
+          <PriceCell onSave={(k, v) => { const n = Math.round(Number(v)); if (!(n > 0 && n < 100)) { toast("Процент от 1 до 99"); return false; } set(p => ({ loyalty: { ...p.loyalty, percent: n } })); toast("Скидка сохранена"); return true; }}
+            k="loyalty" label="Скидка, %" val={s.loyalty?.percent || 10} />
+          <PriceCell onSave={(k, v) => { const n = Math.round(Number(v)); if (!(n >= 1 && n <= 50)) { toast("Лимит от 1 до 50"); return false; } set({ downloadLimit: n }); toast("Лимит сохранён"); return true; }}
+            k="dl" label="Скачиваний на модель" val={s.downloadLimit || 5} />
+        </div>
+        <p className="note">Ссылка на файл действует 5 минут и работает только у покупателя. Если по заказу скачивают из многих мест сразу, заказ встаёт «на проверку» — его видно в разделе «Заказы».</p>
+      </section>
       <section className="panel"><h2>Акция «1+1»</h2>
         <p className="panel-sub">За каждую оплаченную модель покупатель выбирает одну в подарок. «2+1» в это время не действует, боксы идут по цене акции.</p>
         <div className="actions">
@@ -297,11 +312,16 @@ export function AdminPrices() {
   );
 }
 
+const ORDER_ST = { paid: ["Оплачен", ""], review: ["На проверке", "warn"], revoked: ["Доступ закрыт", "off"], refunded: ["Возврат", "off"] };
+
 export function AdminOrders() {
-  const { s, byId, toast } = useStore();
+  const { s, set, byId, toast } = useStore();
+  const [open, setOpen] = useState(null);
+  const limit = s.downloadLimit || 5;
   const os = s.orders.slice().sort((a, b) => b.date - a.date);
-  const rev = os.reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
+  const rev = os.filter(o => o.status !== "refunded").reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
   const nm = id => byId[id] ? byId[id].name : id;
+  const patch = (id, fn, msg) => { set(p => ({ orders: p.orders.map(o => o.id === id ? { ...o, ...fn(o) } : o) })); toast(msg); };
   return (
     <>
       <div className="adm-h"><div><Eyebrow /><h1>Заказы</h1></div></div>
@@ -313,20 +333,48 @@ export function AdminOrders() {
       </div>
       {!os.length ? <div className="empty-state">Заказов пока нет. Они появятся здесь сразу после первой оплаты.</div> :
       <div className="tbl-wrap"><table className="tbl">
-        <thead><tr><th>Заказ</th><th>Дата</th><th>Покупатель</th><th>Канал</th><th>Модели</th><th className="r">Сумма</th><th>Статус</th><th></th></tr></thead>
-        <tbody>{os.map(o => (
-          <tr key={o.id}>
-            <td className="mono">{o.id}</td>
-            <td style={{ whiteSpace: "nowrap" }}>{new Date(o.date).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
-            <td>{o.tg || o.email}{o.tg && <div className="meta">{o.email}</div>}</td>
-            <td><span className="ch">{o.ch === "tg" ? "Telegram" : "Сайт"}</span></td>
-            <td title={o.items.map(nm).join(", ")}>{models(o.items.length)}<div className="meta">{o.items.slice(0, 2).map(nm).join(", ")}{o.items.length > 2 ? "…" : ""}</div></td>
-            <td className="r">{rub(o.total)}</td>
-            <td><span className="status-pill">Оплачен</span><div className="meta">чек отправлен</div></td>
-            <td className="r"><button type="button" className="mini-btn" onClick={() => toast(o.ch === "tg" ? `Бот повторно отправил ссылки ${o.tg} в Telegram` : `Ссылки повторно отправлены на ${o.email}`)}>Отправить ссылки ещё раз</button></td>
-          </tr>))}</tbody>
+        <thead><tr><th>Заказ</th><th>Дата</th><th>Покупатель</th><th>Модели</th><th className="r">Сумма</th><th>Скидка</th><th>Доступ</th><th></th></tr></thead>
+        <tbody>{os.map(o => {
+          const st = ORDER_ST[o.status || "paid"], used = Object.values(o.downloads || {}).reduce((a, b) => a + b, 0);
+          return [
+            <tr key={o.id}>
+              <td className="mono">{o.id}<div className="meta"><span className="ch">{o.ch === "tg" ? "Telegram" : "Сайт"}</span></div></td>
+              <td style={{ whiteSpace: "nowrap" }}>{new Date(o.date).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+              <td>{o.tg || o.email}{o.tg && <div className="meta">{o.email}</div>}</td>
+              <td title={o.items.map(nm).join(", ")}>{models(o.items.length)}<div className="meta">{(o.sets || []).length ? `набор: ${o.sets.join(", ")}` : o.items.slice(0, 2).map(nm).join(", ") + (o.items.length > 2 ? "…" : "")}</div></td>
+              <td className="r">{rub(o.total)}</td>
+              <td>{o.discount ? <>{o.discount.label}<div className="meta">−{rub(o.discount.amount)}</div></> : <span className="meta">—</span>}</td>
+              <td><span className={"status-pill " + st[1]}>{st[0]}</span><div className="meta">скачано {used} раз</div></td>
+              <td className="r"><button type="button" className="mini-btn" aria-expanded={open === o.id} onClick={() => setOpen(open === o.id ? null : o.id)}>Подробнее <ChevronDown size={13} /></button></td>
+            </tr>,
+            open === o.id && <tr key={o.id + "-d"} className="order-detail"><td colSpan={8}>
+              <div className="od-grid">
+                <div>
+                  <b className="od-h">Позиции чека</b>
+                  <table className="tbl compact"><tbody>{(o.lines || o.items.map(id => ({ id, price: 0 }))).map((l, i) => (
+                    <tr key={i}><td>{nm(l.id)}{l.set ? <span className="meta"> · набор</span> : l.gift ? <span className="meta"> · подарок</span> : null}</td>
+                      <td className="r">{rub(l.price)}</td><td className="r meta">скачано {(o.downloads || {})[l.id] || 0} из {limit}</td></tr>))}</tbody></table>
+                </div>
+                <div>
+                  <b className="od-h">Журнал скачиваний</b>
+                  {(o.log || []).length ? <ul className="od-log">{o.log.slice(-8).reverse().map((e, i) => (
+                    <li key={i}><span className="mono">{new Date(e.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> · {nm(e.id)} · {e.ch === "tg" ? "Telegram" : "сайт"}<div className="meta">{e.ua}</div></li>))}</ul>
+                    : <p className="meta">Ещё не скачивали.</p>}
+                  <div className="actions" style={{ marginTop: 10 }}>
+                    <button type="button" className="mini-btn" onClick={() => patch(o.id, () => ({ downloads: {} }), "Лимит скачиваний сброшен")}>Сбросить лимит</button>
+                    {o.status === "review" || o.status === "revoked"
+                      ? <button type="button" className="mini-btn" onClick={() => patch(o.id, () => ({ status: "paid" }), "Доступ открыт")}>Открыть доступ</button>
+                      : <button type="button" className="mini-btn" onClick={() => patch(o.id, () => ({ status: "review" }), "Заказ на проверке: скачивание приостановлено")}>На проверку</button>}
+                    {o.status !== "revoked" && <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => patch(o.id, () => ({ status: "revoked" }), "Доступ к файлам закрыт")}>Закрыть доступ</button>}
+                    <button type="button" className="mini-btn" onClick={() => toast(o.ch === "tg" ? `Бот отправил новую ссылку на покупки ${o.tg}` : `Новая ссылка на покупки отправлена на ${o.email}`)}>Отправить ссылку ещё раз</button>
+                  </div>
+                </div>
+              </div>
+            </td></tr>,
+          ];
+        })}</tbody>
       </table></div>}
-      <p className="note">Чеки формирует онлайн-касса сразу после оплаты, отправлять их вручную не нужно.</p>
+      <p className="note">Чеки формирует онлайн-касса сразу после оплаты. Сумма в чеке разложена по моделям: подарочные тоже получают долю, поэтому частичный возврат считается точно.</p>
     </>
   );
 }
@@ -444,6 +492,144 @@ export function AdminCategories() {
         );
       })()}
       <p className="note">Пустые категории не показываются в меню и фильтрах сайта, пока в них нет моделей.</p>
+    </>
+  );
+}
+
+// ---------- Промокоды ----------
+const blankCode = () => ({ id: "pc-" + Date.now().toString(36), code: "", type: "percent", value: 10, active: true, from: "", to: "", maxUses: 0, once: true, minTotal: 0, category: "", firstOnly: false, duringPromo: false, note: "" });
+
+export function AdminPromo() {
+  const { s, set, cats, toast } = useStore();
+  const [edit, setEdit] = useState(null);
+  const [err, setErr] = useState("");
+  const list = (s.promoCodes || []).filter(c => !c.deleted);
+  const uses = code => s.orders.filter(o => o.code && o.code.toUpperCase() === code.toUpperCase()).length;
+  const upd = patch => setEdit(p => ({ ...p, ...patch }));
+  const state = c => !c.active ? ["выключен", "off"] : c.to && today() > c.to ? ["истёк", "off"] : c.from && today() < c.from ? ["ещё не начался", "warn"] : c.maxUses && uses(c.code) >= c.maxUses ? ["закончился", "off"] : ["действует", ""];
+  const save = () => {
+    const code = (edit.code || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (!/^[A-ZА-ЯЁ0-9_-]{3,20}$/.test(code)) { setErr("Код: 3–20 букв, цифр, «-» или «_»."); return; }
+    if (list.some(c => c.id !== edit.id && c.code === code)) { setErr("Такой код уже есть."); return; }
+    const v = Number(edit.value);
+    if (!(v > 0) || (edit.type === "percent" && v >= 100)) { setErr(edit.type === "percent" ? "Процент от 1 до 99." : "Сумма больше нуля."); return; }
+    const next = { ...edit, code, value: v, maxUses: Number(edit.maxUses) || 0, minTotal: Number(edit.minTotal) || 0 };
+    set(p => ({ promoCodes: (p.promoCodes || []).some(c => c.id === next.id) ? p.promoCodes.map(c => c.id === next.id ? next : c) : [...(p.promoCodes || []), next] }));
+    setEdit(null); toast(`Промокод ${code} сохранён`);
+  };
+  return (
+    <>
+      <div className="adm-h"><div><Eyebrow /><h1>Промокоды</h1></div>
+        <button type="button" className="button button-dark" onClick={() => { setErr(""); setEdit(blankCode()); }}><Plus size={16} /> Добавить промокод</button></div>
+      <p className="panel-sub">Скидка по коду считается после подарков «2+1» / «1+1», на наборы не действует. С скидкой постоянного покупателя не суммируется — применяется большая.</p>
+      {edit && (
+        <section className="panel" aria-label="Промокод">
+          <h2>{list.some(c => c.id === edit.id) ? `Промокод ${edit.code}` : "Новый промокод"}</h2>
+          <div className="fgrid">
+            <div className="f"><label htmlFor="pcCode">Код</label><input type="text" id="pcCode" value={edit.code} placeholder="LOLA10" onChange={e => upd({ code: e.target.value.toUpperCase() })} />{err && <span className="err">{err}</span>}</div>
+            <div className="f"><label htmlFor="pcType">Скидка</label>
+              <select id="pcType" value={edit.type} onChange={e => upd({ type: e.target.value })}><option value="percent">Процент</option><option value="fixed">Сумма в рублях</option></select></div>
+            <div className="f"><label htmlFor="pcVal">{edit.type === "percent" ? "Процент" : "Сумма, ₽"}</label><input type="text" inputMode="numeric" id="pcVal" value={edit.value} onChange={e => upd({ value: e.target.value.replace(/[^0-9]/g, "") })} /></div>
+          </div>
+          <div className="fgrid">
+            <div className="f"><label htmlFor="pcFrom">Действует с</label><input type="date" id="pcFrom" value={edit.from} onChange={e => upd({ from: e.target.value })} /><small>Пусто — сразу</small></div>
+            <div className="f"><label htmlFor="pcTo">По (включительно)</label><input type="date" id="pcTo" value={edit.to} onChange={e => upd({ to: e.target.value })} /><small>Пусто — бессрочно</small></div>
+            <div className="f"><label htmlFor="pcMax">Всего использований</label><input type="text" inputMode="numeric" id="pcMax" value={edit.maxUses || ""} placeholder="без лимита" onChange={e => upd({ maxUses: e.target.value.replace(/[^0-9]/g, "") })} /></div>
+            <div className="f"><label htmlFor="pcMin">Заказ от, ₽</label><input type="text" inputMode="numeric" id="pcMin" value={edit.minTotal || ""} placeholder="любой" onChange={e => upd({ minTotal: e.target.value.replace(/[^0-9]/g, "") })} /></div>
+            <div className="f"><label htmlFor="pcCat">Только для категории</label>
+              <select id="pcCat" value={edit.category} onChange={e => upd({ category: e.target.value })}><option value="">Все модели</option>{cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          </div>
+          <div className="f"><label htmlFor="pcNote">Заметка для себя</label><input type="text" id="pcNote" value={edit.note || ""} placeholder="Для подписчиков канала" onChange={e => upd({ note: e.target.value })} /></div>
+          <div className="actions">
+            <label className="check"><input type="checkbox" checked={!!edit.once} onChange={e => upd({ once: e.target.checked })} /><span>Один раз на покупателя</span></label>
+            <label className="check"><input type="checkbox" checked={!!edit.firstOnly} onChange={e => upd({ firstOnly: e.target.checked })} /><span>Только первый заказ</span></label>
+            <label className="check"><input type="checkbox" checked={!!edit.duringPromo} onChange={e => upd({ duringPromo: e.target.checked })} /><span>Действует во время «1+1»</span></label>
+            <label className="check"><input type="checkbox" checked={!!edit.active} onChange={e => upd({ active: e.target.checked })} /><span>Включён</span></label>
+          </div>
+          <div className="actions"><button type="button" className="btn primary" onClick={save}>Сохранить</button><button type="button" className="btn" onClick={() => setEdit(null)}>Отмена</button></div>
+        </section>
+      )}
+      {!list.length ? <div className="empty-state">Промокодов пока нет.</div> :
+      <div className="tbl-wrap"><table className="tbl">
+        <thead><tr><th>Код</th><th>Скидка</th><th>Условия</th><th className="r">Использован</th><th>Статус</th><th></th></tr></thead>
+        <tbody>{list.map(c => { const [t, cls] = state(c); return (
+          <tr key={c.id}>
+            <td><b className="mono" style={{ fontFamily: "var(--f-mono)" }}>{c.code}</b>{c.note && <div className="meta">{c.note}</div>}</td>
+            <td>{c.type === "percent" ? `−${c.value}%` : `−${rub(c.value)}`}</td>
+            <td className="meta">{[c.from && `с ${fmtDay(c.from)}`, c.to && `по ${fmtDay(c.to)}`, c.minTotal && `от ${rub(c.minTotal)}`, c.category && `«${cats.find(x => x.id === c.category)?.name || "?"}»`, c.once && "1 раз на покупателя", c.firstOnly && "первый заказ", c.duringPromo && "и во время 1+1"].filter(Boolean).join(" · ") || "без условий"}</td>
+            <td className="r">{uses(c.code)}{c.maxUses ? ` из ${c.maxUses}` : ""}</td>
+            <td><span className={"status-pill " + cls}>{t}</span></td>
+            <td className="r"><div style={{ display: "inline-flex", gap: 6 }}>
+              <button type="button" className="mini-btn" onClick={() => { setErr(""); setEdit({ ...c }); }}>Изменить</button>
+              <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => { set(p => ({ promoCodes: p.promoCodes.map(x => x.id === c.id ? { ...x, deleted: true } : x) })); toast(`Промокод ${c.code} удалён`); }}>Удалить</button></div></td>
+          </tr>); })}</tbody>
+      </table></div>}
+    </>
+  );
+}
+
+// ---------- Наборы ----------
+const blankSet = () => ({ id: "s-" + Date.now().toString(36), name: "", desc: "", items: [], price: 0, active: true });
+
+export function AdminBundles() {
+  const { s, set, byId, toast } = useStore();
+  const [edit, setEdit] = useState(null);
+  const [err, setErr] = useState("");
+  const list = (s.bundles || []).filter(b => !b.deleted);
+  const all = s.models.filter(m => !m.deleted && !m.hidden);
+  // Сколько стоили бы те же модели по обычным правилам — для сравнения
+  const regular = items => quote({ ...s, cart: items, bundles: [], code: "", loyalty: { on: false }, orders: [] }, byId).total;
+  const upd = patch => setEdit(p => ({ ...p, ...patch }));
+  const save = () => {
+    const name = (edit.name || "").trim();
+    if (!name) { setErr("Укажите название набора."); return; }
+    if (edit.items.length < 2) { setErr("В наборе должно быть хотя бы 2 модели."); return; }
+    const price = Number(edit.price);
+    if (!(price > 0)) { setErr("Укажите цену набора."); return; }
+    const next = { ...edit, name, price };
+    set(p => ({ bundles: (p.bundles || []).some(b => b.id === next.id) ? p.bundles.map(b => b.id === next.id ? next : b) : [...(p.bundles || []), next] }));
+    setEdit(null); toast(`Набор «${name}» сохранён`);
+  };
+  return (
+    <>
+      <div className="adm-h"><div><Eyebrow /><h1>Наборы</h1></div>
+        <button type="button" className="button button-dark" onClick={() => { setErr(""); setEdit(blankSet()); }}><Plus size={16} /> Добавить набор</button></div>
+      <p className="panel-sub">Набор — несколько моделей по фиксированной цене. Его модели не участвуют в «2+1», промокоды на набор не действуют. Если часть моделей покупатель уже купил, цена набора уменьшается пропорционально.</p>
+      {edit && (
+        <section className="panel" aria-label="Набор">
+          <h2>{list.some(b => b.id === edit.id) ? `Набор «${edit.name}»` : "Новый набор"}</h2>
+          <div className="fgrid">
+            <div className="f"><label htmlFor="bName">Название</label><input type="text" id="bName" value={edit.name} placeholder="Неоновая серия" onChange={e => upd({ name: e.target.value })} />{err && <span className="err">{err}</span>}</div>
+            <div className="f"><label htmlFor="bPrice">Цена набора, ₽</label><input type="text" inputMode="numeric" id="bPrice" value={edit.price || ""} onChange={e => upd({ price: e.target.value.replace(/[^0-9]/g, "") })} />
+              {edit.items.length > 1 && <small>Без набора по «2+1»: {rub(regular(edit.items))}{edit.price && +edit.price >= regular(edit.items) ? " — набор не выгоднее, покупатели его не возьмут" : edit.price ? ` — выгода ${rub(regular(edit.items) - edit.price)}` : ""}</small>}</div>
+          </div>
+          <div className="f"><label htmlFor="bDesc">Описание</label><textarea id="bDesc" value={edit.desc} placeholder="Что объединяет модели" onChange={e => upd({ desc: e.target.value })} /></div>
+          <div className="f"><span className="lbl">Модели в наборе · {edit.items.length}</span>
+            <div className="pick-grid">{all.map(m => (
+              <label key={m.id} className={"pick" + (edit.items.includes(m.id) ? " on" : "")}>
+                <input type="checkbox" checked={edit.items.includes(m.id)} onChange={e => upd({ items: e.target.checked ? [...edit.items, m.id] : edit.items.filter(x => x !== m.id) })} />
+                <span className="pick-art"><ModelArt m={m} uid={"pk-" + m.id} sizes="60px" /></span><span>{m.name}</span>
+              </label>))}</div></div>
+          <div className="actions"><label className="check"><input type="checkbox" checked={!!edit.active} onChange={e => upd({ active: e.target.checked })} /><span>Показывать в каталоге</span></label></div>
+          <div className="actions"><button type="button" className="btn primary" onClick={save}>Сохранить</button><button type="button" className="btn" onClick={() => setEdit(null)}>Отмена</button></div>
+        </section>
+      )}
+      {!list.length ? <div className="empty-state">Наборов пока нет.</div> :
+      <div className="tbl-wrap"><table className="tbl">
+        <thead><tr><th>Набор</th><th>Модели</th><th className="r">Цена</th><th className="r">Без набора</th><th className="r">Продано</th><th>В каталоге</th><th></th></tr></thead>
+        <tbody>{list.map(b => (
+          <tr key={b.id}>
+            <td><b>{b.name}</b>{b.desc && <div className="meta">{b.desc}</div>}</td>
+            <td className="meta">{b.items.map(id => byId[id]?.name).filter(Boolean).join(", ")}</td>
+            <td className="r">{rub(b.price)}</td>
+            <td className="r meta">{rub(regular(b.items))}</td>
+            <td className="r">{s.orders.filter(o => (o.sets || []).includes(b.name)).length}</td>
+            <td><label className="switch"><input type="checkbox" checked={!!b.active} aria-label={`Показывать «${b.name}»`} onChange={e => set(p => ({ bundles: p.bundles.map(x => x.id === b.id ? { ...x, active: e.target.checked } : x) }))} /><span className="track" /></label></td>
+            <td className="r"><div style={{ display: "inline-flex", gap: 6 }}>
+              <button type="button" className="mini-btn" onClick={() => { setErr(""); setEdit({ ...b, items: [...b.items] }); }}>Изменить</button>
+              <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => { set(p => ({ bundles: p.bundles.map(x => x.id === b.id ? { ...x, deleted: true } : x), cart: p.cart.filter(x => x !== "set:" + b.id) })); toast(`Набор «${b.name}» удалён`); }}>Удалить</button></div></td>
+          </tr>))}</tbody>
+      </table></div>}
     </>
   );
 }

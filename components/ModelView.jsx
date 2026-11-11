@@ -15,7 +15,7 @@ import { rub, zipMb } from "@/lib/format";
 export default function ModelView({ initial }) {
   const { s, byId, cats, toggleCart, promo } = useStore();
   const m = byId[initial.id] && !byId[initial.id].deleted ? { ...initial, ...byId[initial.id] } : initial;
-  const { inCart, gift, cost, hasSame } = useOffer(m);
+  const { inCart, inSet, isOwned, gift, cost, hasSame } = useOffer(m);
   const [shot, setShot] = useState(0);
   const photos = m.photos || [];
   const shots = [...photos, null];
@@ -70,7 +70,9 @@ export default function ModelView({ initial }) {
           <h1>{m.name}</h1>
           <div className="detail-author"><PenTool size={14} aria-hidden="true" /> Авторская модель lola.stl</div>
 
-          {inCart
+          {isOwned
+            ? <div className="detail-price in"><Check size={20} aria-hidden="true" /> Уже куплена</div>
+            : inCart
             ? <div className="detail-price in"><Check size={20} aria-hidden="true" /> В корзине</div>
             : gift || cost === 0
               ? <div className="detail-price gift">0 ₽ <small>пойдёт в подарок</small></div>
@@ -94,10 +96,12 @@ export default function ModelView({ initial }) {
           </div>
 
           <div className="detail-actions">
-            <button type="button" className={"button full " + (inCart ? "button-outline" : gift ? "button-gift" : "button-dark")} onClick={() => toggleCart(m.id)}>
+            {isOwned ? <Link href="/purchases" className="button button-dark full">Скачать в «Моих покупках» <ArrowRight size={17} /></Link>
+            : inSet ? <Link href="/cart" className="button button-outline full">Входит в набор в корзине</Link>
+            : <button type="button" className={"button full " + (inCart ? "button-outline" : gift ? "button-gift" : "button-dark")} onClick={() => toggleCart(m.id)}>
               {inCart ? "Убрать из корзины" : gift ? <><Gift size={17} /> Взять в подарок</> : <>Добавить в корзину <ArrowRight size={17} /></>}
-            </button>
-            {inCart && <Link href="/cart" className="button button-dark full">Перейти в корзину <ArrowRight size={17} /></Link>}
+            </button>}
+            {inCart && !inSet && !isOwned && <Link href="/cart" className="button button-dark full">Перейти в корзину <ArrowRight size={17} /></Link>}
           </div>
           <p className="secure-note">Файлы останутся в «Моих покупках», их можно скачать повторно.</p>
         </div>
