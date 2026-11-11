@@ -15,13 +15,16 @@ export default function Effects() {
   const path = usePathname();
 
   // Появление при прокрутке. Метка хранится в data-in: className карточек перезаписывает React.
-  // Перезапускается при смене страницы и следит за новыми элементами.
+  // Один наблюдатель на всё время работы сайта: при переходе между страницами новые элементы
+  // подхватывает MutationObserver. Раньше наблюдатель пересоздавался на каждой странице
+  // и отключался, успев «забрать» элементы новой страницы, — они так и оставались прозрачными.
   useEffect(() => {
     const root = document.documentElement;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
       root.classList.remove("fx");
       return;
     }
+    const seen = new WeakSet();
     const io = new IntersectionObserver(entries => {
       let i = 0;
       entries.forEach(e => {
@@ -31,10 +34,10 @@ export default function Effects() {
         io.unobserve(e.target);
       });
     }, { rootMargin: "0px 0px -8% 0px", threshold: .08 });
-    // То, что уже на экране, показывается сразу — анимируется только то, что ниже.
-    const scan = (first) => document.querySelectorAll(REVEAL).forEach(el => {
-      if (el.dataset.in || el.dataset.fxSeen) return;
-      el.dataset.fxSeen = "1";
+    // При первой загрузке то, что уже на экране, показывается сразу — анимируется только то, что ниже.
+    const scan = first => document.querySelectorAll(REVEAL).forEach(el => {
+      if (el.dataset.in || seen.has(el)) return;
+      seen.add(el);
       if (first && el.getBoundingClientRect().top < innerHeight * .92) el.dataset.in = "1";
       else io.observe(el);
     });
@@ -42,7 +45,19 @@ export default function Effects() {
     root.classList.add("fx");
     const mo = new MutationObserver(() => scan(false));
     mo.observe(document.body, { childList: true, subtree: true });
-    return () => { io.disconnect(); mo.disconnect(); };
+    return () => { io.disconnect(); mo.disconnect(); root.classList.remove("fx"); };
+  }, []);
+
+  // Подстраховка после перехода: всё, что оказалось на экране, но не проявилось, показывается сразу.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      document.querySelectorAll(REVEAL).forEach(el => {
+        if (el.dataset.in) return;
+        const r = el.getBoundingClientRect();
+        if (r.top < innerHeight && r.bottom > 0) el.dataset.in = "1";
+      });
+    }, 900);
+    return () => clearTimeout(t);
   }, [path]);
 
   // Свечение за курсором и наклон карточек.
