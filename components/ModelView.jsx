@@ -6,14 +6,14 @@ import { ArrowRight, Check, Gift, PenTool, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import ProductCard, { FavButton, useOffer } from "./ProductCard";
 import { useStore } from "./Store";
-import { kindName, related } from "@/lib/models";
+import { catOf, categoryHref, kindName, related } from "@/lib/models";
 import { paidPrice } from "@/lib/pricing";
 import { rub, zipMb } from "@/lib/format";
 
 // Страница модели. Данные приходят с сервера; если админка прототипа поменяла модель,
 // после загрузки в браузере покажется изменённая версия.
 export default function ModelView({ initial }) {
-  const { s, byId, toggleCart, promo } = useStore();
+  const { s, byId, cats, toggleCart, promo } = useStore();
   const m = byId[initial.id] && !byId[initial.id].deleted ? { ...initial, ...byId[initial.id] } : initial;
   const { inCart, gift, cost, hasSame } = useOffer(m);
   const [shot, setShot] = useState(0);
@@ -22,6 +22,7 @@ export default function ModelView({ initial }) {
   const pr = s.prices;
   const rel = related(s.models, m, 4);
   const isBox = m.cat === "box";
+  const cat = catOf(m, cats);
 
   const giftText = isBox
     ? { b: "Боксы считаются отдельно", t: (promo ? `По акции любой бокс ${rub(pr.boxPromo)}. ` : `Один бокс ${rub(pr.box[1])}, от 4 штук ${rub(pr.box4)} за каждый. `) + "Подарки на боксы не действуют." }
@@ -33,7 +34,7 @@ export default function ModelView({ initial }) {
     <div className="inner-page">
       <nav className="breadcrumbs" aria-label="Навигация">
         <Link href="/">Каталог</Link><span aria-hidden="true">/</span>
-        <span>{isBox ? "Боксы" : kindName(m)}</span><span aria-hidden="true">/</span>
+        {cat ? <Link href={categoryHref(cat)}>{cat.name}</Link> : <span>{kindName(m, cats)}</span>}<span aria-hidden="true">/</span>
         <span aria-current="page">{m.name}</span>
       </nav>
 
@@ -65,7 +66,7 @@ export default function ModelView({ initial }) {
         </div>
 
         <div className="detail-copy">
-          <span className="eyebrow">{kindName(m)} · цифровая модель{m.isNew ? " · новинка" : ""}</span>
+          <span className="eyebrow">{kindName(m, cats)} · цифровая модель{m.isNew ? " · новинка" : ""}</span>
           <h1>{m.name}</h1>
           <div className="detail-author"><PenTool size={14} aria-hidden="true" /> Авторская модель lola.stl</div>
 
@@ -82,6 +83,7 @@ export default function ModelView({ initial }) {
             <div className="detail-spec"><dt>Архив для скачивания</dt><dd>ZIP ≈ {zipMb(m)} МБ</dd></div>
             {m.dims && <div className="detail-spec"><dt>Размер после печати</dt><dd>{m.dims}</dd></div>}
             {m.print && <div className="detail-spec"><dt>Печать</dt><dd>{m.print}</dd></div>}
+            {m.material && <div className="detail-spec"><dt>Пластик</dt><dd>{m.material}</dd></div>}
             <div className="detail-spec"><dt>Лицензия</dt><dd>личное использование и продажа отпечатков</dd></div>
             <div className="detail-spec"><dt>Доставка</dt><dd>сразу после оплаты</dd></div>
           </dl>

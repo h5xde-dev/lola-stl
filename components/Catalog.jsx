@@ -1,24 +1,36 @@
 "use client";
+import { useEffect } from "react";
 import { Search } from "lucide-react";
 import ProductCard from "./ProductCard";
 import Tiers from "./Tiers";
 import { useStore } from "./Store";
 import { models } from "@/lib/format";
 
-const CHIPS = [["all", "Все модели"], ["plant", "Кашпо"], ["box", "Боксы"], ["new", "Новинки"]];
 
-export default function Catalog() {
-  const { s, set } = useStore();
-  const pub = s.models.filter(m => !m.hidden && !m.deleted);
+// category — id категории на её странице: тогда фильтры по категориям не нужны.
+export default function Catalog({ category }) {
+  const { s, set, cats } = useStore();
+  const all = s.models.filter(m => !m.hidden && !m.deleted);
+  const pub = category ? all.filter(m => m.category === category) : all;
+  const used = cats.filter(c => all.some(m => m.category === c.id));
+  const chips = [["all", "Все модели"], ...used.map(c => [c.id, c.name]), ["new", "Новинки"]];
+  const filter = category || chips.some(([k]) => k === s.filter) ? s.filter : "all";
   const q = s.q.trim().toLowerCase();
-  const list = pub.filter(m => (s.filter === "all" || (s.filter === "new" ? m.isNew : m.cat === s.filter)) && (!q || m.name.toLowerCase().includes(q)));
+  const match = m => (category || filter === "all" || (filter === "new" ? m.isNew : m.category === filter)) &&
+    (!q || m.name.toLowerCase().includes(q) || (m.tags || []).some(t => t.includes(q)));
+  const list = pub.filter(match);
+  // ?q=… в адресе — поиск из строки поиска Google и Яндекса прямо в выдаче.
+  useEffect(() => {
+    const q = new URLSearchParams(location.search).get("q");
+    if (q) { set({ q, filter: "all" }); document.getElementById("catalog")?.scrollIntoView(); }
+  }, [set]);
   return (
     <>
       <Tiers />
       <div className="catalog-toolbar">
-        <div className="category-tabs" role="group" aria-label="Категории моделей">
-          {CHIPS.map(([k, t]) => <button key={k} type="button" className="category-tab" aria-pressed={s.filter === k} onClick={() => set({ filter: k })}>{t}</button>)}
-        </div>
+        {!category && <div className="category-tabs" role="group" aria-label="Категории моделей">
+          {chips.map(([k, t]) => <button key={k} type="button" className="category-tab" aria-pressed={filter === k} onClick={() => set({ filter: k })}>{t}</button>)}
+        </div>}
         <label className="search-field"><Search size={16} aria-hidden="true" />
           <input type="search" value={s.q} onChange={e => set({ q: e.target.value })} placeholder="Найти модель" aria-label="Найти модель" />
         </label>
@@ -29,7 +41,7 @@ export default function Catalog() {
       </div>
       <div className="catalog-bottom">
         <span>Показано {models(list.length)} из {pub.length}</span>
-        <span>В магазине будет весь каталог — около 130 моделей</span>
+        <span>Каталог пополняется: новые модели появляются каждую неделю</span>
       </div>
     </>
   );

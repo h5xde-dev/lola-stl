@@ -101,7 +101,7 @@ export function CheckoutView() {
     if (!Object.keys(err).length) setPaying(f.pm.value || "СБП");
   };
   const paid = () => {
-    const id = "L-" + (1043 + s.orders.filter(o => !o.sample).length);
+    const id = "L-" + (1001 + s.orders.length);
     set(p => ({ orders: [...p.orders, { id, date: Date.now(), items: p.cart.slice(), total: Q.total, email: p.email, method: paying, promo, own: true, ch: tg ? "tg" : "site", tg: tg ? "@ваш_аккаунт" : undefined }], cart: [] }));
     setFlash(id);
     router.push("/purchases");
@@ -193,7 +193,6 @@ export function PurchasesView() {
           </section>
         );
       }) : <div className="empty-state" style={{ marginTop: 26 }}>Покупок пока нет. <Link href="/#catalog">Перейти в каталог</Link></div>}
-      <p className="account-demo-note">Заказы с пометкой «пример» вымышленные: после запуска здесь будут только ваши покупки.</p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useStore } from "./Store";
 import Effects from "./Effects";
 import { fmtDay, models, rub } from "@/lib/format";
+import { categoryHref } from "@/lib/models";
 
 const DEMO = process.env.NEXT_PUBLIC_DEMO !== "off";
 
@@ -50,22 +51,24 @@ function Announcement() {
     : <div className="announcement"><Sparkles size={14} aria-hidden="true" /> Модели для тех, кто любит создавать <span className="dim">—</span> <span className="tail">файлы сразу после оплаты</span></div>;
 }
 
-const NAV = [["all", "Каталог"], ["plant", "Кашпо"], ["box", "Боксы"], ["new", "Новинки"]];
 
 function Header() {
-  const { s, set, Q } = useStore();
+  const { s, set, Q, cats } = useStore();
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const home = path === "/";
+  const menu = cats.filter(c => c.inMenu && s.models.some(m => m.category === c.id && !m.hidden && !m.deleted));
   return (
     <header className="site-header site-only">
       <div className="wrap header-in">
         <button type="button" className="icon-btn mobile-menu" aria-label={open ? "Закрыть меню" : "Открыть меню"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button>
         <Brand />
         <nav className={open ? "main-nav nav-open" : "main-nav"} aria-label="Основная навигация">
-          {NAV.map(([k, t]) => (
-            <Link key={k} href="/#catalog" aria-current={home && s.filter === k ? "page" : undefined} onClick={() => { set({ filter: k, q: "" }); setOpen(false); }}>{t}</Link>
+          <Link href="/#catalog" aria-current={home && s.filter === "all" ? "page" : undefined} onClick={() => { set({ filter: "all", q: "" }); setOpen(false); }}>Каталог</Link>
+          {menu.map(c => (
+            <Link key={c.id} href={categoryHref(c)} aria-current={path === `/category/${c.slug}` ? "page" : undefined} onClick={() => setOpen(false)}>{c.name}</Link>
           ))}
+          <Link href="/#catalog" aria-current={home && s.filter === "new" ? "page" : undefined} onClick={() => { set({ filter: "new", q: "" }); setOpen(false); }}>Новинки</Link>
         </nav>
         <div className="header-actions">
           <Link href="/purchases" className="header-link" aria-current={path === "/purchases" ? "page" : undefined}>Мои покупки</Link>

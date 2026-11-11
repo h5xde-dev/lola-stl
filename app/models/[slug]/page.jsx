@@ -2,7 +2,8 @@ import ModelView from "@/components/ModelView";
 import ClientModel from "@/components/ClientModel";
 import { notFound } from "next/navigation";
 import JsonLd from "@/lib/jsonld";
-import { getModel, kindGen, kindName } from "@/lib/models";
+import { catOf, getModel, kindGen, kindName } from "@/lib/models";
+import { productLd } from "@/lib/schema";
 import { DEFAULT_PRICES, boxPrice, paidPrice } from "@/lib/pricing";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -17,11 +18,22 @@ export async function generateMetadata({ params }) {
   const title = `${m.name} — STL-модель ${kindWord(m)} для 3D-печати`;
   const extra = [m.dims && `Размер ${m.dims}`, m.print].filter(Boolean).join(", ");
   const description = `${m.desc} ${extra ? extra + ". " : ""}Файл STL ${m.mb} МБ сразу после оплаты, продажа отпечатков разрешена.`;
+  const price = m.cat === "box" ? boxPrice(DEFAULT_PRICES, 1, false) : paidPrice(DEFAULT_PRICES, 1);
   return {
     title,
     description,
     alternates: { canonical: `/models/${m.slug}` },
+    keywords: [kindName(m), "STL-модель", "3D-печать", ...(m.tags || [])],
     openGraph: { type: "website", title, description, url: `/models/${m.slug}` },
+    twitter: { card: "summary_large_image", title, description },
+    // Товарные open-graph-теги: их читают Яндекс, VK и Telegram при показе ссылки.
+    other: {
+      "product:price:amount": String(price),
+      "product:price:currency": "RUB",
+      "product:availability": "in stock",
+      "product:brand": SITE_NAME,
+      "product:category": kindName(m),
+    },
   };
 }
 
@@ -32,28 +44,19 @@ export default async function ModelPage({ params, searchParams }) {
   if (!m) { if ((await searchParams).local) return <ClientModel slug={slug} />; notFound(); }
   const url = `${SITE_URL}/models/${m.slug}`;
   const price = m.cat === "box" ? boxPrice(DEFAULT_PRICES, 1, false) : paidPrice(DEFAULT_PRICES, 1);
+  const cat = catOf(m);
   return (
     <>
       <JsonLd data={{
         "@context": "https://schema.org",
         "@graph": [
-          {
-            "@type": "Product", "@id": url + "#product", name: m.name, description: m.desc, sku: m.id, url,
-            image: m.photos?.length ? [SITE_URL + m.photos[0], `${url}/opengraph-image`] : `${url}/opengraph-image`, category: `STL-модели / ${kindName(m)}`,
-            brand: { "@type": "Brand", name: SITE_NAME },
-            additionalProperty: [
-              { "@type": "PropertyValue", name: "Формат", value: "STL" },
-              { "@type": "PropertyValue", name: "Размер файла", value: `${m.mb} МБ` },
-              m.dims && { "@type": "PropertyValue", name: "Размер после печати", value: m.dims },
-              m.print && { "@type": "PropertyValue", name: "Настройки печати", value: m.print },
-            ].filter(Boolean),
-            offers: { "@type": "Offer", url, price, priceCurrency: "RUB", availability: "https://schema.org/InStock", itemCondition: "https://schema.org/NewCondition" },
-          },
+          productLd(m, { price, categoryName: cat?.name || kindName(m) }),
           {
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Каталог", item: SITE_URL + "/" },
-              { "@type": "ListItem", position: 2, name: m.name, item: url },
+              ...(cat ? [{ "@type": "ListItem", position: 2, name: cat.name, item: `${SITE_URL}/category/${cat.slug}` }] : []),
+              { "@type": "ListItem", position: cat ? 3 : 2, name: m.name, item: url },
             ],
           },
         ],

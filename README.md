@@ -19,12 +19,14 @@ npm run dev        # http://localhost:3000
 | Путь | Что это |
 | --- | --- |
 | `app/page.jsx` | Главная с каталогом. Рендерится на сервере при каждом запросе |
-| `app/models/[slug]/page.jsx` | Страница модели: SEO-метаданные, schema.org Product и хлебные крошки |
+| `app/models/[slug]/page.jsx` | Страница модели: SEO-метаданные, товарные open-graph-теги, schema.org Product и хлебные крошки |
+| `app/category/[slug]/page.jsx` | Страница категории: schema.org CollectionPage со списком товаров |
+| `lib/schema.js` | Общая разметка: организация, сайт с поиском, товар |
 | `app/models/[slug]/opengraph-image.jsx` | Картинка для соцсетей и мессенджеров с рендером модели |
 | `app/sitemap.js`, `app/robots.js` | Карта сайта и правила для поисковиков |
 | `app/cart`, `app/checkout`, `app/purchases` | Корзина, оформление, «Мои покупки» (закрыты от индексации) |
-| `app/admin` | Админка прототипа: модели, цены и акция, заказы |
-| `lib/models.js` | Каталог. `getModels()` и `getModel()` потом будут читать базу данных |
+| `app/admin` | Админка прототипа: модели, категории, цены и акция, заказы |
+| `lib/models.js` | Категории и модели. `getModels()`, `getCategories()` и др. потом будут читать базу данных |
 | `lib/pricing.js` | Расчёт «2+1», «1+1» и цен боксов |
 | `components/ModelArt.jsx` | Схема модели в SVG, пока нет фото. Рисуется на сервере |
 
@@ -43,6 +45,9 @@ npm run dev        # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | Основной адрес, например `https://lola-stl.ru`. Без неё берётся адрес проекта на Vercel |
 | `INDEXING` | `on`: открыть индексацию и отдать sitemap в `robots.txt` |
 | `NEXT_PUBLIC_DEMO` | `off`: скрыть верхнюю панель прототипа |
+| `GOOGLE_SITE_VERIFICATION` | код подтверждения из Google Search Console |
+| `YANDEX_VERIFICATION` | код подтверждения из Яндекс Вебмастера |
+| `NEXT_PUBLIC_SAME_AS` | ссылки на соцсети через запятую, например Telegram-канал: попадут в разметку организации |
 
 После этого добавьте сайт в Яндекс Вебмастер и Google Search Console и отправьте `/sitemap.xml`.
 

@@ -2,20 +2,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, FolderTree, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { useStore } from "./Store";
-import { kindName, slugify } from "@/lib/models";
+import { categoryHref, kindName, slugify } from "@/lib/models";
 import { paidPrice, plantQuote } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
 const live = s => s.models.filter(m => !m.deleted);
 
 export function AdminShell({ children }) {
-  const { s, promo } = useStore();
+  const { s, promo, cats } = useStore();
   const path = usePathname();
-  const tab = path.startsWith("/admin/prices") ? "prices" : path.startsWith("/admin/orders") ? "orders" : "models";
+  const tab = path.startsWith("/admin/prices") ? "prices" : path.startsWith("/admin/orders") ? "orders" : path.startsWith("/admin/categories") ? "categories" : "models";
   const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
     <div className="admin-page">
@@ -23,6 +23,7 @@ export function AdminShell({ children }) {
         <Brand sub="АДМИН-ПАНЕЛЬ" href="/admin" />
         <nav aria-label="Разделы админки">
           {link("/admin", LayoutGrid, "Модели", live(s).length, "models")}
+          {link("/admin/categories", FolderTree, "Категории", cats.length, "categories")}
           {link("/admin/orders", ReceiptText, "Заказы", s.orders.length, "orders")}
           {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
         </nav>
@@ -36,7 +37,7 @@ export function AdminShell({ children }) {
 const Eyebrow = () => <span className="eyebrow">Магазин · управление</span>;
 
 export function AdminModels() {
-  const { s, set, toast } = useStore();
+  const { s, set, toast, cats } = useStore();
   const [q, setQ] = useState("");
   const L = live(s), hid = L.filter(m => m.hidden).length, mb = L.reduce((a, m) => a + (m.mb || 0), 0);
   const sales = {};
@@ -62,7 +63,7 @@ export function AdminModels() {
             <tr key={m.id} className={m.hidden ? "off" : ""}>
               <td><div className="thumb"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
               <td><b>{m.name}</b>{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
-              <td>{kindName(m)}</td>
+              <td>{kindName(m, cats)}</td>
               <td className="r mono">{m.mb ? m.mb + " МБ" : "нет файла"}</td>
               <td className="r">{sales[m.id] || 0}</td>
               <td><label className="switch" title={m.mb ? "" : "Сначала загрузите STL-файл"}>
@@ -77,13 +78,13 @@ export function AdminModels() {
   );
 }
 
-const newDraft = () => ({ id: "u" + Date.now().toString(36), slug: "", name: "", cat: "plant", n: 6, twist: 1, prof: "cone", color: "#9fc7b0", h: .6, r: .26, mb: 0, hidden: true, isNew: true, photos: [], dims: "", print: "", desc: "", custom: true });
+const newDraft = cats => ({ id: "u" + Date.now().toString(36), slug: "", name: "", category: cats[0]?.id, cat: cats[0]?.pricing || "plant", material: "", tags: [], n: 6, twist: 1, prof: "cone", color: "#9fc7b0", h: .6, r: .26, mb: 0, hidden: true, isNew: true, photos: [], dims: "", print: "", desc: "", custom: true });
 
 export function AdminEditor({ id }) {
-  const { s, set, byId, toast } = useStore();
+  const { s, set, byId, toast, cats } = useStore();
   const router = useRouter();
   const isNew = id === "new";
-  const [d, setD] = useState(() => isNew ? newDraft() : byId[id] ? { photos: [], ...JSON.parse(JSON.stringify(byId[id])) } : null);
+  const [d, setD] = useState(() => isNew ? newDraft(cats) : byId[id] ? { photos: [], ...JSON.parse(JSON.stringify(byId[id])) } : null);
   const [err, setErr] = useState("");
   const [upload, setUpload] = useState(null);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -174,14 +175,17 @@ export function AdminEditor({ id }) {
         <div className="panel">
           <div className="fgrid">
             <div className="f"><label htmlFor="fName">Название</label><input type="text" id="fName" value={d.name} placeholder="Например, Волна-2" onChange={e => upd({ name: e.target.value })} />{err && <span className="err">{err}</span>}</div>
-            <div className="f"><label htmlFor="fCat">Тип</label>
-              <select id="fCat" value={d.cat} onChange={e => { const c = e.target.value; upd({ cat: c, h: c === "box" ? .42 : .6, r: c === "box" ? .3 : .26 }); }}>{opt("plant", "Кашпо и другие модели")}{opt("box", "Бокс")}</select>
-              <small>{d.cat === "box" ? "Считается по ценам боксов, без подарков." : "Участвует в «2+1» и «1+1»."}</small></div>
+            <div className="f"><label htmlFor="fCat">Категория</label>
+              <select id="fCat" value={d.category || ""} onChange={e => { const c = cats.find(x => x.id === e.target.value); if (c) upd({ category: c.id, cat: c.pricing, h: c.pricing === "box" ? .42 : .6, r: c.pricing === "box" ? .3 : .26 }); }}>
+                {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+              <small>{d.cat === "box" ? "Считается по ценам боксов, без подарков." : "Участвует в «2+1» и «1+1»."} <Link href="/admin/categories" className="text-link" style={{ fontSize: 12 }}>Категории</Link></small></div>
           </div>
           <div className="f"><label htmlFor="fDesc">Описание</label><textarea id="fDesc" value={d.desc} placeholder="Пара предложений о модели. Попадает в поиск Яндекса и Google." onChange={e => upd({ desc: e.target.value })} /></div>
           <div className="fgrid">
             <div className="f"><label htmlFor="fDims">Размер после печати</label><input type="text" id="fDims" value={d.dims} placeholder="120 × 120 × 118 мм" onChange={e => upd({ dims: e.target.value })} /></div>
             <div className="f"><label htmlFor="fPrint">Настройки печати</label><input type="text" id="fPrint" value={d.print} placeholder="режим вазы, сопло 0,6 мм" onChange={e => upd({ print: e.target.value })} /></div>
+            <div className="f"><label htmlFor="fMat">Пластик</label><input type="text" id="fMat" value={d.material || ""} placeholder="шёлковый PLA" onChange={e => upd({ material: e.target.value })} /></div>
+            <div className="f"><label htmlFor="fTags">Метки для поиска</label><input type="text" id="fTags" value={(d.tags || []).join(", ")} placeholder="щупальца, рассада" onChange={e => upd({ tags: e.target.value.split(",").map(t => t.trim().toLowerCase()).filter(Boolean) })} /><small>Через запятую. Ищутся в каталоге и попадают в описание для поисковиков.</small></div>
             <div className="f"><label htmlFor="fSlug">Адрес страницы</label><input type="text" id="fSlug" value={d.slug} placeholder={slugify(d.name || "model")} onChange={e => upd({ slug: slugify(e.target.value) })} /><small>/models/{d.slug || slugify(d.name || "model")}</small></div>
           </div>
           <div className="f"><span className="lbl">STL-файл</span>
@@ -307,6 +311,7 @@ export function AdminOrders() {
         <div className="stat"><span>Средний чек</span><b>{rub(os.length ? Math.round(rev / os.length) : 0)}</b></div>
         <div className="stat"><span>Через Telegram</span><b>{os.length ? Math.round(tg / os.length * 100) : 0}%</b></div>
       </div>
+      {!os.length ? <div className="empty-state">Заказов пока нет. Они появятся здесь сразу после первой оплаты.</div> :
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th>Заказ</th><th>Дата</th><th>Покупатель</th><th>Канал</th><th>Модели</th><th className="r">Сумма</th><th>Статус</th><th></th></tr></thead>
         <tbody>{os.map(o => (
@@ -320,8 +325,125 @@ export function AdminOrders() {
             <td><span className="status-pill">Оплачен</span><div className="meta">чек отправлен</div></td>
             <td className="r"><button type="button" className="mini-btn" onClick={() => toast(o.ch === "tg" ? `Бот повторно отправил ссылки ${o.tg} в Telegram` : `Ссылки повторно отправлены на ${o.email}`)}>Отправить ссылки ещё раз</button></td>
           </tr>))}</tbody>
+      </table></div>}
+      <p className="note">Чеки формирует онлайн-касса сразу после оплаты, отправлять их вручную не нужно.</p>
+    </>
+  );
+}
+
+// ---------- Категории ----------
+const blankCat = () => ({ id: "c-" + Date.now().toString(36), slug: "", name: "", single: "", gen: "", pricing: "plant", inMenu: true, desc: "", custom: true });
+
+export function AdminCategories() {
+  const { s, set, cats, toast } = useStore();
+  const [edit, setEdit] = useState(null);   // черновик категории
+  const [err, setErr] = useState("");
+  const [del, setDel] = useState(null);     // { id, to }
+  const count = id => s.models.filter(m => m.category === id && !m.deleted).length;
+
+  const upd = patch => setEdit(p => ({ ...p, ...patch }));
+  const startNew = () => { setErr(""); setDel(null); setEdit(blankCat()); };
+  const save = () => {
+    const name = (edit.name || "").trim();
+    if (!name) { setErr("Укажите название: оно видно в меню и на странице категории."); return; }
+    let slug = edit.slug || slugify(name);
+    const taken = new Set((s.categories || []).filter(c => c.id !== edit.id && !c.deleted).map(c => c.slug));
+    for (let i = 2; taken.has(slug); i++) slug = slugify(name) + "-" + i;
+    const single = (edit.single || "").trim() || name;
+    const next = { ...edit, name, slug, single, gen: (edit.gen || "").trim() || single.toLowerCase() };
+    const exists = (s.categories || []).some(c => c.id === next.id);
+    if (!exists) next.order = Math.max(0, ...cats.map(c => c.order || 0)) + 1;
+    set(p => ({
+      categories: exists ? p.categories.map(c => c.id === next.id ? next : c) : [...p.categories, next],
+      // ценовая группа моделей следует за категорией
+      models: p.models.map(m => m.category === next.id ? { ...m, cat: next.pricing } : m),
+    }));
+    setEdit(null);
+    toast(exists ? "Категория сохранена" : `Категория «${name}» добавлена`);
+  };
+  const move = (id, dir) => {
+    const list = cats.map(c => c.id), i = list.indexOf(id), j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    set(p => ({ categories: p.categories.map(c => ({ ...c, order: list.indexOf(c.id) + 1 })) }));
+  };
+  const remove = () => {
+    const c = cats.find(x => x.id === del.id), n = count(c.id), to = cats.find(x => x.id === del.to);
+    if (n && !to) { toast("Выберите, куда перенести модели"); return; }
+    set(p => ({
+      categories: p.categories.map(x => x.id === c.id ? { ...x, deleted: true } : x),
+      models: n ? p.models.map(m => m.category === c.id ? { ...m, category: to.id, cat: to.pricing } : m) : p.models,
+    }));
+    setDel(null); setEdit(null);
+    toast(n ? `Категория удалена, ${models(n)} перенесено в «${to.name}»` : "Категория удалена");
+  };
+
+  return (
+    <>
+      <div className="adm-h"><div><Eyebrow /><h1>Категории</h1></div>
+        <button type="button" className="button button-dark" onClick={startNew}><Plus size={16} /> Добавить категорию</button></div>
+      <p className="panel-sub">Категории видны в меню сайта и фильтрах каталога, у каждой своя страница для поисковиков. Порядок в меню меняется стрелками.</p>
+
+      {edit && (
+        <section className="panel" aria-label="Категория">
+          <h2>{(s.categories || []).some(c => c.id === edit.id) ? "Изменить категорию" : "Новая категория"}</h2>
+          <div className="fgrid">
+            <div className="f"><label htmlFor="cName">Название в меню</label><input type="text" id="cName" value={edit.name} placeholder="Лотки для рассады" onChange={e => upd({ name: e.target.value })} />{err && <span className="err">{err}</span>}</div>
+            <div className="f"><label htmlFor="cSingle">На карточке модели</label><input type="text" id="cSingle" value={edit.single} placeholder={edit.name || "Лоток для рассады"} onChange={e => upd({ single: e.target.value })} /></div>
+            <div className="f"><label htmlFor="cGen">В заголовке «STL-модель …»</label><input type="text" id="cGen" value={edit.gen} placeholder="лотка для рассады" onChange={e => upd({ gen: e.target.value })} /><small>Для поисковиков: «Лоток «Капли» — STL-модель лотка для рассады».</small></div>
+          </div>
+          <div className="fgrid">
+            <div className="f"><label htmlFor="cPricing">Цены</label>
+              <select id="cPricing" value={edit.pricing} onChange={e => upd({ pricing: e.target.value })}>
+                <option value="plant">Как кашпо: «2+1» и «1+1»</option>
+                <option value="box">Как боксы: отдельные цены, без подарков</option>
+              </select></div>
+            <div className="f"><label htmlFor="cSlug">Адрес страницы</label><input type="text" id="cSlug" value={edit.slug} placeholder={slugify(edit.name || "category")} onChange={e => upd({ slug: slugify(e.target.value) })} /><small>/category/{edit.slug || slugify(edit.name || "category")}</small></div>
+          </div>
+          <div className="f"><label htmlFor="cDesc">Описание для страницы категории</label><textarea id="cDesc" value={edit.desc} placeholder="Пара предложений: что за модели, для чего, как печатаются. Попадает в поиск." onChange={e => upd({ desc: e.target.value })} /></div>
+          <div className="actions">
+            <label className="check"><input type="checkbox" checked={!!edit.inMenu} onChange={e => upd({ inMenu: e.target.checked })} /><span>Показывать в меню сайта</span></label>
+          </div>
+          <div className="actions">
+            <button type="button" className="btn primary" onClick={save}>Сохранить</button>
+            <button type="button" className="btn" onClick={() => setEdit(null)}>Отмена</button>
+          </div>
+        </section>
+      )}
+
+      <div className="tbl-wrap"><table className="tbl">
+        <thead><tr><th>Порядок</th><th>Категория</th><th>Цены</th><th className="r">Моделей</th><th>В меню</th><th></th></tr></thead>
+        <tbody>{cats.map((c, i) => (
+          <tr key={c.id}>
+            <td><div style={{ display: "flex", gap: 4 }}>
+              <button type="button" className="mini-btn" disabled={!i} aria-label={`Поднять «${c.name}»`} onClick={() => move(c.id, -1)}><ArrowUp size={14} /></button>
+              <button type="button" className="mini-btn" disabled={i === cats.length - 1} aria-label={`Опустить «${c.name}»`} onClick={() => move(c.id, 1)}><ArrowDown size={14} /></button></div></td>
+            <td><b>{c.name}</b><div className="meta"><Link href={categoryHref(c)} className="text-link" style={{ fontSize: 12 }}>/category/{c.slug}</Link></div></td>
+            <td>{c.pricing === "box" ? "Как боксы" : "2+1 и 1+1"}</td>
+            <td className="r">{count(c.id)}</td>
+            <td><label className="switch"><input type="checkbox" checked={!!c.inMenu} aria-label={`Показывать «${c.name}» в меню`}
+              onChange={e => set(p => ({ categories: p.categories.map(x => x.id === c.id ? { ...x, inMenu: e.target.checked } : x) }))} /><span className="track" /></label></td>
+            <td className="r"><div style={{ display: "inline-flex", gap: 6 }}>
+              <button type="button" className="mini-btn" onClick={() => { setErr(""); setDel(null); setEdit({ ...c }); }}>Изменить</button>
+              <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => { setEdit(null); setDel({ id: c.id, to: "" }); }}>Удалить</button></div></td>
+          </tr>))}</tbody>
       </table></div>
-      <p className="note">Заказы с пометкой «пример» вымышленные. Чеки формирует онлайн-касса сразу после оплаты, отправлять их вручную не нужно.</p>
+
+      {del && (() => {
+        const c = cats.find(x => x.id === del.id), n = count(del.id);
+        return (
+          <div className="confirm">
+            <span>{n ? `В категории «${c.name}» ${models(n)}. Куда их перенести?` : `Удалить пустую категорию «${c.name}»?`}</span>
+            {n > 0 && <select value={del.to} onChange={e => setDel({ ...del, to: e.target.value })} className="search" style={{ width: "auto" }} aria-label="Куда перенести модели">
+              <option value="">Выберите категорию</option>
+              {cats.filter(x => x.id !== c.id).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>}
+            <button type="button" className="btn danger" onClick={remove}>Удалить</button>
+            <button type="button" className="btn" onClick={() => setDel(null)}>Оставить</button>
+          </div>
+        );
+      })()}
+      <p className="note">Пустые категории не показываются в меню и фильтрах сайта, пока в них нет моделей.</p>
     </>
   );
 }

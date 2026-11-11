@@ -36,7 +36,7 @@ export function FavButton({ m }) {
 }
 
 export default function ProductCard({ m }) {
-  const { toggleCart } = useStore();
+  const { toggleCart, cats } = useStore();
   const { inCart, gift } = useOffer(m);
   const href = modelHref(m);
   const photo = m.photos && m.photos.length > 0;
@@ -54,7 +54,7 @@ export default function ProductCard({ m }) {
         <FavButton m={m} />
       </div>
       <div className="product-body">
-        <div className="product-top"><span className="eyebrow">{kindName(m)}</span><span className="product-size">STL · {m.mb} МБ</span></div>
+        <div className="product-top"><span className="eyebrow">{kindName(m, cats)}</span><span className="product-size">STL · {m.mb} МБ</span></div>
         <h3><Link href={href}>{m.name}</Link></h3>
         {m.desc && <p className="product-desc">{m.desc}</p>}
         <div className="product-foot">

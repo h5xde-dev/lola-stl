@@ -6,6 +6,8 @@ import Hero3D from "@/components/Hero3D";
 import JsonLd from "@/lib/jsonld";
 import { getModels } from "@/lib/models";
 import { SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/site";
+import { ORG_ID, SITE_ID } from "@/lib/schema";
+import { DEFAULT_PRICES, paidPrice } from "@/lib/pricing";
 import glubina from "@/public/images/works/glubina.jpg";
 import romashki from "@/public/images/works/romashki.jpg";
 import grani from "@/public/images/works/grani.jpg";
@@ -17,6 +19,7 @@ import leopard from "@/public/images/works/rassada-leopard.jpg";
 // Страница собирается на сервере при каждом запросе: каталог берётся из getModels(),
 // поэтому после подключения базы новые модели появятся без пересборки.
 export const dynamic = "force-dynamic";
+export const metadata = { alternates: { canonical: "/" } };
 
 const MARQUEE = ["Авторские STL-модели", "Шёлковый PLA", "Режим вазы", "Файлы сразу после оплаты", "Отпечатки можно продавать", "2 + 1 в подарок", "Без регистрации", "Проверено печатью"];
 
@@ -35,10 +38,13 @@ export default async function Home() {
       <JsonLd data={{
         "@context": "https://schema.org",
         "@graph": [
-          { "@type": "WebSite", "@id": SITE_URL + "/#site", url: SITE_URL, name: SITE_NAME, description: SITE_DESC, inLanguage: "ru" },
-          { "@type": "Store", "@id": SITE_URL + "/#store", name: SITE_NAME, url: SITE_URL, description: SITE_DESC, currenciesAccepted: "RUB", paymentAccepted: "СБП, банковская карта" },
-          { "@type": "ItemList", name: "Каталог STL-моделей", numberOfItems: list.length,
-            itemListElement: list.map((m, i) => ({ "@type": "ListItem", position: i + 1, url: `${SITE_URL}/models/${m.slug}`, name: m.name })) },
+          { "@type": "OnlineStore", "@id": SITE_URL + "/#store", name: SITE_NAME, url: SITE_URL, description: SITE_DESC, parentOrganization: { "@id": ORG_ID },
+            currenciesAccepted: "RUB", paymentAccepted: "СБП, банковская карта", image: SITE_URL + "/opengraph-image" },
+          { "@type": "WebPage", "@id": SITE_URL + "/#home", url: SITE_URL, name: "lola.stl — авторские STL-модели для 3D-печати", isPartOf: { "@id": SITE_ID },
+            primaryImageOfPage: SITE_URL + "/opengraph-image",
+            mainEntity: { "@type": "ItemList", name: "Каталог STL-моделей", numberOfItems: list.length,
+              itemListElement: list.map((m, i) => ({ "@type": "ListItem", position: i + 1, url: `${SITE_URL}/models/${m.slug}`, name: m.name,
+                image: m.photos?.[0] ? SITE_URL + m.photos[0] : undefined })) } },
         ],
       }} />
 
@@ -69,8 +75,6 @@ export default async function Home() {
             <figure className="shot side s2">
               <Image src={grani} alt="Гранёное фиолетовое кашпо" sizes="(max-width: 640px) 36vw, 14vw" placeholder="blur" />
             </figure>
-            <div className="hero-caption" aria-hidden="true"><span>КОЛЛЕКЦИЯ № 01</span><strong>Неоновая серия</strong><ArrowDown size={18} /></div>
-            <div className="hero-stamp" aria-hidden="true">СОЗДАНО<br />ДЛЯ ПЕЧАТИ</div>
           </div>
         </div>
       </section>

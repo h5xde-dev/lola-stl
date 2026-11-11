@@ -1,33 +1,32 @@
 "use client";
-// Состояние прототипа: корзина, цены, акция, модели и заказы.
+// Состояние прототипа: корзина, цены, акция, категории, модели и заказы.
 // На сервере и при первой отрисовке в браузере берутся исходные данные, поэтому HTML совпадает.
 // После загрузки страницы подмешиваются правки из localStorage (их делает админка прототипа).
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BASE_MODELS } from "@/lib/models";
+import { BASE_CATEGORIES, BASE_MODELS } from "@/lib/models";
 import { DEFAULT_PRICES, promoOn, quote } from "@/lib/pricing";
 import { rub } from "@/lib/format";
 
-// Версия ключа меняется, когда меняется демо-каталог: старые сохранённые данные сбрасываются.
-const KEY = "lola-next-v2";
-const DAY = 864e5;
+// Версия ключа меняется, когда меняется формат данных: старые сохранённые данные сбрасываются.
+const KEY = "lola-next-v3";
+const clone = v => JSON.parse(JSON.stringify(v));
 
 function seed() {
-  const now = Date.now();
   return {
-    cart: ["p01", "p02", "p05"], promo: false, promoAuto: false, promoStart: "2026-11-20", promoEnd: "2026-11-30",
+    cart: [], promo: false, promoAuto: false, promoStart: "2026-11-20", promoEnd: "2026-11-30",
     mode: "site", filter: "all", q: "", email: "", favs: [],
-    models: JSON.parse(JSON.stringify(BASE_MODELS)),
-    prices: JSON.parse(JSON.stringify(DEFAULT_PRICES)),
-    orders: [
-      { id: "L-1037", date: now - 12 * DAY, items: ["p01", "p05", "p03"], total: 1200, email: "buyer1@example.ru", method: "СБП", ch: "site", sample: true },
-      { id: "L-1038", date: now - 9 * DAY, items: ["p02", "p04", "p06", "p07", "p03", "p01"], total: 2000, email: "buyer2@example.ru", tg: "@buyer_tg2", method: "Карта", ch: "tg", sample: true },
-      { id: "L-1039", date: now - 7 * DAY, items: ["b02"], total: 900, email: "buyer3@example.ru", method: "СБП", ch: "site", sample: true },
-      { id: "L-1040", date: now - 5 * DAY, items: ["p05", "p04", "b01", "b04"], total: 2800, email: "buyer4@example.ru", tg: "@buyer_tg4", method: "СБП", ch: "tg", sample: true },
-      { id: "L-1041", date: now - 4 * DAY, items: ["p06"], total: 700, email: "buyer5@example.ru", tg: "@buyer_tg5", method: "Карта", ch: "tg", sample: true },
-      { id: "L-1042", date: now - 3 * DAY, items: ["p04", "p07", "p02"], total: 1200, email: "buyer@example.ru", method: "СБП", ch: "site", sample: true, own: true },
-    ],
+    categories: clone(BASE_CATEGORIES),
+    models: clone(BASE_MODELS),
+    prices: clone(DEFAULT_PRICES),
+    orders: [],
   };
+}
+
+// Добавляет к сохранённым правкам то, что появилось в каталоге после сохранения.
+function mergeNew(saved, base) {
+  const ids = new Set((saved || []).map(x => x.id));
+  return [...(saved || []), ...base.filter(x => !ids.has(x.id)).map(clone)];
 }
 
 const Ctx = createContext(null);
@@ -43,9 +42,8 @@ export function StoreProvider({ children }) {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "null");
       if (saved && Array.isArray(saved.cart) && Array.isArray(saved.models)) {
-        // Новые модели из каталога добавляются к сохранённым правкам админки.
-        const ids = new Set(saved.models.map(m => m.id));
-        saved.models = [...saved.models, ...BASE_MODELS.filter(m => !ids.has(m.id)).map(m => JSON.parse(JSON.stringify(m)))];
+        saved.models = mergeNew(saved.models, BASE_MODELS);
+        saved.categories = mergeNew(saved.categories, BASE_CATEGORIES);
         setS(p => ({ ...p, ...saved }));
       }
     } catch {}
@@ -61,6 +59,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   const byId = useMemo(() => Object.fromEntries(s.models.map(m => [m.id, m])), [s.models]);
+  const cats = useMemo(() => [...(s.categories || [])].filter(c => !c.deleted).sort((a, b) => (a.order || 0) - (b.order || 0)), [s.categories]);
   const Q = useMemo(() => quote(s, byId), [s, byId]);
   const promo = promoOn(s);
 
@@ -81,7 +80,7 @@ export function StoreProvider({ children }) {
 
   const reset = useCallback(() => { setS(seed()); setFlash(null); toast("Демо сброшено"); }, [toast]);
 
-  const value = { s, set, ready, byId, Q, promo, toggleCart, toggleFav, toast, reset, flash, setFlash, toastMsg };
+  const value = { s, set, ready, byId, cats, Q, promo, toggleCart, toggleFav, toast, reset, flash, setFlash, toastMsg };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
