@@ -45,7 +45,7 @@ function Line({ id, tag, gift }) {
   return (
     <div className="cart-line">
       <Link href={modelHref(m)} className="cart-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"r-" + id} /></Link>
-      <Link href={modelHref(m)} className="cart-line-name"><b>{m.name}</b><span>STL · {m.mb} МБ · ZIP ≈ {zipMb(m)} МБ</span></Link>
+      <Link href={modelHref(m)} className="cart-line-name"><b>{m.name}</b><span>STL · {m.mb} МБ<span className="zip"> · ZIP ≈ {zipMb(m)} МБ</span></span></Link>
       <span className={"line-tag" + (gift ? " gift" : "")}>{tag}</span>
       <button type="button" className="remove-button" aria-label={`Убрать «${m.name}»`} onClick={() => toggleCart(id)}><X size={17} /></button>
     </div>

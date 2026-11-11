@@ -6,7 +6,7 @@ import { ArrowLeft, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { useStore } from "./Store";
-import { catName, slugify } from "@/lib/models";
+import { kindName, slugify } from "@/lib/models";
 import { paidPrice, plantQuote } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
@@ -62,7 +62,7 @@ export function AdminModels() {
             <tr key={m.id} className={m.hidden ? "off" : ""}>
               <td><div className="thumb"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
               <td><b>{m.name}</b>{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
-              <td>{catName(m.cat)}</td>
+              <td>{kindName(m)}</td>
               <td className="r mono">{m.mb ? m.mb + " МБ" : "нет файла"}</td>
               <td className="r">{sales[m.id] || 0}</td>
               <td><label className="switch" title={m.mb ? "" : "Сначала загрузите STL-файл"}>

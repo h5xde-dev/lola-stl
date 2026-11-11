@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Menu, ShoppingBag, Sparkles, X } from "lucide-react";
+import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useStore } from "./Store";
 import { fmtDay, models, rub } from "@/lib/format";
 
@@ -92,7 +92,7 @@ function TgMainButton() {
 
 export default function Shell({ children }) {
   const { s, toast, toastMsg } = useStore();
-  const path = usePathname();
+  const path = usePathname(), router = useRouter();
   const adm = path.startsWith("/admin");
   const cls = [s.mode === "tg" && !adm ? "tg" : "", adm ? "is-admin" : ""].join(" ").trim();
 
@@ -104,7 +104,9 @@ export default function Shell({ children }) {
           {!adm && <div className="site-only"><Announcement /></div>}
           <Header />
           <div className="tg-head tg-only">
-            <button type="button" className="tg-x" onClick={() => toast("В Telegram эта кнопка закрывает мини-приложение.")}>Закрыть</button>
+            {path === "/"
+              ? <button type="button" className="tg-x" onClick={() => toast("В Telegram эта кнопка закрывает мини-приложение.")}>Закрыть</button>
+              : <button type="button" className="tg-x tg-back" onClick={() => (history.length > 1 ? router.back() : router.push("/"))}><ChevronLeft size={18} aria-hidden="true" />Назад</button>}
             <div className="tg-title"><b>lola.stl</b><small>мини-приложение</small></div>
             <Link href="/purchases" className="tg-x">Покупки</Link>
           </div>

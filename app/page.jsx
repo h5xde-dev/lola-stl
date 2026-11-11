@@ -19,11 +19,11 @@ import leopard from "@/public/images/works/rassada-leopard.jpg";
 export const dynamic = "force-dynamic";
 
 const GALLERY = [
-  { img: puzyri, cls: "tall", tag: "Пара кашпо", text: "Пузырьковая текстура", alt: "Два кашпо с пузырьковой текстурой в сине-фиолетовом пластике" },
-  { img: rassada9, cls: "wide", tag: "Лоток", text: "Для рассады на 9 горшков", alt: "Лоток для рассады на девять горшков с точечной текстурой" },
-  { img: grani, cls: "tall", tag: "Кашпо", text: "Гранёная поверхность", alt: "Фиолетовое кашпо с гранёной поверхностью" },
-  { img: korall, cls: "", tag: "Пара кашпо", text: "Коралловый рельеф", alt: "Два кашпо с волнистым коралловым рельефом" },
-  { img: romashki, cls: "", tag: "Шёлковый PLA", text: "Кашпо с ромашками", alt: "Кашпо с рельефными ромашками в трёхцветном шёлковом пластике" },
+  { img: puzyri, slug: "puzyri", cls: "tall", tag: "Пара кашпо", text: "Пузырьковая текстура", alt: "Два кашпо с пузырьковой текстурой в сине-фиолетовом пластике" },
+  { img: rassada9, slug: "lotok-kapli", cls: "wide", tag: "Лоток", text: "Для рассады на 9 горшков", alt: "Лоток для рассады на девять горшков с точечной текстурой" },
+  { img: grani, slug: "grani", cls: "tall", tag: "Кашпо", text: "Гранёная поверхность", alt: "Фиолетовое кашпо с гранёной поверхностью" },
+  { img: korall, slug: "korall", cls: "", tag: "Пара кашпо", text: "Коралловый рельеф", alt: "Два кашпо с волнистым коралловым рельефом" },
+  { img: romashki, slug: "romashki", cls: "", tag: "Шёлковый PLA", text: "Кашпо с ромашками", alt: "Кашпо с рельефными ромашками в трёхцветном шёлковом пластике" },
 ];
 
 export default async function Home() {
@@ -88,10 +88,10 @@ export default async function Home() {
         </div>
         <div className="gallery-grid">
           {GALLERY.map(g => (
-            <figure key={g.text} className={"g-item " + g.cls}>
+            <Link key={g.text} href={`/models/${g.slug}`} className={"g-item " + g.cls}>
               <Image src={g.img} alt={g.alt} sizes="(max-width: 640px) 50vw, 25vw" placeholder="blur" />
-              <figcaption><span>{g.tag}</span>{g.text}</figcaption>
-            </figure>
+              <span className="g-cap"><span>{g.tag}</span>{g.text}</span>
+            </Link>
           ))}
         </div>
       </section>

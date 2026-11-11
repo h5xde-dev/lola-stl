@@ -8,23 +8,24 @@ import { BASE_MODELS } from "@/lib/models";
 import { DEFAULT_PRICES, promoOn, quote } from "@/lib/pricing";
 import { rub } from "@/lib/format";
 
-const KEY = "lola-next-v1";
+// Версия ключа меняется, когда меняется демо-каталог: старые сохранённые данные сбрасываются.
+const KEY = "lola-next-v2";
 const DAY = 864e5;
 
 function seed() {
   const now = Date.now();
   return {
-    cart: ["m01", "m03", "m07"], promo: false, promoAuto: false, promoStart: "2026-11-20", promoEnd: "2026-11-30",
+    cart: ["p01", "p02", "p05"], promo: false, promoAuto: false, promoStart: "2026-11-20", promoEnd: "2026-11-30",
     mode: "site", filter: "all", q: "", email: "", favs: [],
     models: JSON.parse(JSON.stringify(BASE_MODELS)),
     prices: JSON.parse(JSON.stringify(DEFAULT_PRICES)),
     orders: [
-      { id: "L-1037", date: now - 12 * DAY, items: ["m01", "m11", "m04"], total: 1200, email: "buyer1@example.ru", method: "СБП", ch: "site", sample: true },
-      { id: "L-1038", date: now - 9 * DAY, items: ["m02", "m06", "m08", "m12", "m13", "m14"], total: 2000, email: "buyer2@example.ru", tg: "@buyer_tg2", method: "Карта", ch: "tg", sample: true },
+      { id: "L-1037", date: now - 12 * DAY, items: ["p01", "p05", "p03"], total: 1200, email: "buyer1@example.ru", method: "СБП", ch: "site", sample: true },
+      { id: "L-1038", date: now - 9 * DAY, items: ["p02", "p04", "p06", "p07", "p03", "p01"], total: 2000, email: "buyer2@example.ru", tg: "@buyer_tg2", method: "Карта", ch: "tg", sample: true },
       { id: "L-1039", date: now - 7 * DAY, items: ["b02"], total: 900, email: "buyer3@example.ru", method: "СБП", ch: "site", sample: true },
-      { id: "L-1040", date: now - 5 * DAY, items: ["m07", "m10", "b01", "b04"], total: 2800, email: "buyer4@example.ru", tg: "@buyer_tg4", method: "СБП", ch: "tg", sample: true },
-      { id: "L-1041", date: now - 4 * DAY, items: ["m11"], total: 700, email: "buyer5@example.ru", tg: "@buyer_tg5", method: "Карта", ch: "tg", sample: true },
-      { id: "L-1042", date: now - 3 * DAY, items: ["m05", "m09", "m02"], total: 1200, email: "buyer@example.ru", method: "СБП", ch: "site", sample: true, own: true },
+      { id: "L-1040", date: now - 5 * DAY, items: ["p05", "p04", "b01", "b04"], total: 2800, email: "buyer4@example.ru", tg: "@buyer_tg4", method: "СБП", ch: "tg", sample: true },
+      { id: "L-1041", date: now - 4 * DAY, items: ["p06"], total: 700, email: "buyer5@example.ru", tg: "@buyer_tg5", method: "Карта", ch: "tg", sample: true },
+      { id: "L-1042", date: now - 3 * DAY, items: ["p04", "p07", "p02"], total: 1200, email: "buyer@example.ru", method: "СБП", ch: "site", sample: true, own: true },
     ],
   };
 }

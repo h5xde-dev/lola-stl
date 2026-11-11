@@ -4,7 +4,7 @@ import { Check, Gift, Heart, Plus } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { useStore } from "./Store";
 import { addCost } from "@/lib/pricing";
-import { catName, modelHref } from "@/lib/models";
+import { kindName, modelHref } from "@/lib/models";
 import { rub } from "@/lib/format";
 
 // Что покупатель видит на кнопке и в строке цены, с учётом того, что уже лежит в корзине.
@@ -39,35 +39,34 @@ export default function ProductCard({ m }) {
   const { toggleCart } = useStore();
   const { inCart, gift } = useOffer(m);
   const href = modelHref(m);
+  const photo = m.photos && m.photos.length > 0;
   return (
-    <article className={"product-card" + (inCart ? " is-in" : "")}>
-      <div className="product-image-link">
-        <Link href={href} className="product-image" aria-label={`${m.name}: подробнее`}>
+    <article className={"product-card" + (inCart ? " is-in" : "") + (photo ? " has-photo" : "")}>
+      <div className="product-media">
+        <Link href={href} className="product-image" aria-label={`${m.name}: подробнее`} tabIndex={-1}>
           <ModelArt m={m} uid={"c-" + m.id} />
         </Link>
         <span className="product-tags">
           {m.isNew && <span className="product-tag new">Новинка</span>}
           {m.vase && <span className="product-tag">Режим вазы</span>}
-          {m.mb >= 200 && <span className="product-tag big">{m.mb} МБ</span>}
+          {!photo && <span className="product-tag">Схема</span>}
         </span>
         <FavButton m={m} />
       </div>
-      <div className="product-info">
-        <div>
-          <span className="eyebrow">{catName(m.cat)}</span>
-          <h3><Link href={href}>{m.name}</Link></h3>
-          <span className="product-size">STL · {m.mb} МБ{m.dims ? ` · ${m.dims}` : ""}</span>
-        </div>
-        <div className="product-buy">
+      <div className="product-body">
+        <div className="product-top"><span className="eyebrow">{kindName(m)}</span><span className="product-size">STL · {m.mb} МБ</span></div>
+        <h3><Link href={href}>{m.name}</Link></h3>
+        {m.desc && <p className="product-desc">{m.desc}</p>}
+        <div className="product-foot">
           <PriceLine m={m} />
           <button type="button" className={"add-button" + (inCart ? " in" : gift ? " gift" : "")} aria-pressed={inCart}
             aria-label={inCart ? `Убрать «${m.name}» из корзины` : gift ? `Взять «${m.name}» в подарок` : `Добавить «${m.name}» в корзину`}
+            title={inCart ? "Убрать из корзины" : gift ? "Взять в подарок" : "В корзину"}
             onClick={() => toggleCart(m.id)}>
             {inCart ? <Check size={18} /> : gift ? <Gift size={17} /> : <Plus size={18} />}
           </button>
         </div>
       </div>
-      {m.desc && <p className="product-desc">{m.desc}</p>}
     </article>
   );
 }

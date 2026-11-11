@@ -2,13 +2,13 @@ import ModelView from "@/components/ModelView";
 import ClientModel from "@/components/ClientModel";
 import { notFound } from "next/navigation";
 import JsonLd from "@/lib/jsonld";
-import { catName, getModel } from "@/lib/models";
+import { getModel, kindGen, kindName } from "@/lib/models";
 import { DEFAULT_PRICES, boxPrice, paidPrice } from "@/lib/pricing";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-const kindWord = m => (m.cat === "box" ? "бокса" : "кашпо");
+const kindWord = kindGen;
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -39,7 +39,7 @@ export default async function ModelPage({ params, searchParams }) {
         "@graph": [
           {
             "@type": "Product", "@id": url + "#product", name: m.name, description: m.desc, sku: m.id, url,
-            image: m.photos?.length ? [SITE_URL + m.photos[0], `${url}/opengraph-image`] : `${url}/opengraph-image`, category: `STL-модели / ${catName(m.cat)}`,
+            image: m.photos?.length ? [SITE_URL + m.photos[0], `${url}/opengraph-image`] : `${url}/opengraph-image`, category: `STL-модели / ${kindName(m)}`,
             brand: { "@type": "Brand", name: SITE_NAME },
             additionalProperty: [
               { "@type": "PropertyValue", name: "Формат", value: "STL" },

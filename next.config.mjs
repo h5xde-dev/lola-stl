@@ -2,6 +2,8 @@
 const nextConfig = {
   poweredByHeader: false,
   turbopack: { root: import.meta.dirname },
+  // Фото моделей читаются картинками для соцсетей с диска, их нужно положить в серверную сборку.
+  outputFileTracingIncludes: { "/**/opengraph-image*": ["./public/images/works/**"] },
   async headers() {
     const base = [
       { key: "X-Content-Type-Options", value: "nosniff" },

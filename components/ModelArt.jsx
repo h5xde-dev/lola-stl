@@ -2,6 +2,8 @@
 // Это SVG без браузерных API, поэтому он рисуется на сервере и сразу есть в HTML.
 // Когда у модели есть фото, вместо схемы показывается первое фото.
 
+import Image from "next/image";
+
 const PROF = {
   cyl: () => 1,
   cone: t => .72 + .28 * t,
@@ -43,10 +45,14 @@ export function artGeometry(m) {
   return { cx, base, R, lh, isBox, layers, edges: edges.join(""), top, topY, lastR: last.r };
 }
 
-export default function ModelArt({ m, uid, photo = true, size }) {
+export default function ModelArt({ m, uid, photo = true, size, sizes = "(max-width: 640px) 50vw, 25vw", priority }) {
   if (photo && m.photos && m.photos.length) {
+    const src = m.photos[0];
+    // Фото из проекта идут через оптимизатор Next.js (нужный размер, webp/avif),
+    // фото, загруженные в админке прототипа (data URL), показываются как есть.
+    if (src.startsWith("/")) return <Image src={src} alt={m.name} fill sizes={sizes} priority={priority} style={{ objectFit: "cover" }} />;
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={m.photos[0]} alt={m.name} loading="lazy" />;
+    return <img src={src} alt={m.name} loading="lazy" />;
   }
   const g = artGeometry(m), rgb = hex2rgb(m.color), id = "a-" + (uid || m.id);
   const stops = alt => [[0, .6], [.3, 1.1], [.5, 1], [.85, .74], [1, .56]].map(([o, f]) => <stop key={o} offset={o} stopColor={shade(rgb, f * alt)} />);

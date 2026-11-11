@@ -1,11 +1,12 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, Gift, PenTool, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import ProductCard, { FavButton, useOffer } from "./ProductCard";
 import { useStore } from "./Store";
-import { catName, related } from "@/lib/models";
+import { kindName, related } from "@/lib/models";
 import { paidPrice } from "@/lib/pricing";
 import { rub, zipMb } from "@/lib/format";
 
@@ -32,7 +33,7 @@ export default function ModelView({ initial }) {
     <div className="inner-page">
       <nav className="breadcrumbs" aria-label="Навигация">
         <Link href="/">Каталог</Link><span aria-hidden="true">/</span>
-        <span>{isBox ? "Боксы" : "Кашпо"}</span><span aria-hidden="true">/</span>
+        <span>{isBox ? "Боксы" : kindName(m)}</span><span aria-hidden="true">/</span>
         <span aria-current="page">{m.name}</span>
       </nav>
 
@@ -40,7 +41,9 @@ export default function ModelView({ initial }) {
         <div className="gallery">
           <div className="product-image-link">
             <div className="detail-image">
-              {shots[shot] ? <img src={shots[shot]} alt={`${m.name}, фото ${shot + 1}`} /> : <ModelArt m={m} uid={"p-" + m.id} photo={false} />}
+              {shots[shot]
+                ? (shots[shot].startsWith("/") ? <Image src={shots[shot]} alt={`${m.name}, фото ${shot + 1}`} fill priority sizes="(max-width: 900px) 100vw, 55vw" style={{ objectFit: "cover" }} /> : <img src={shots[shot]} alt={`${m.name}, фото ${shot + 1}`} />)
+                : <ModelArt m={m} uid={"p-" + m.id} photo={false} />}
             </div>
             <span className="product-tags">
               {m.isNew && <span className="product-tag new">Новинка</span>}
@@ -53,7 +56,7 @@ export default function ModelView({ initial }) {
             <div className="thumbs" role="group" aria-label="Изображения">
               {shots.map((p, i) => (
                 <button key={i} type="button" aria-pressed={shot === i} aria-label={p ? `Фото ${i + 1}` : "Схема модели"} onClick={() => setShot(i)}>
-                  {p ? <img src={p} alt="" /> : <ModelArt m={m} uid={"t-" + m.id} photo={false} />}
+                  {p ? (p.startsWith("/") ? <Image src={p} alt="" fill sizes="72px" style={{ objectFit: "cover" }} /> : <img src={p} alt="" />) : <ModelArt m={m} uid={"t-" + m.id} photo={false} />}
                 </button>
               ))}
             </div>
@@ -62,7 +65,7 @@ export default function ModelView({ initial }) {
         </div>
 
         <div className="detail-copy">
-          <span className="eyebrow">{catName(m.cat)} · цифровая модель{m.isNew ? " · новинка" : ""}</span>
+          <span className="eyebrow">{kindName(m)} · цифровая модель{m.isNew ? " · новинка" : ""}</span>
           <h1>{m.name}</h1>
           <div className="detail-author"><PenTool size={14} aria-hidden="true" /> Авторская модель lola.stl</div>
 
@@ -77,8 +80,8 @@ export default function ModelView({ initial }) {
           <dl className="detail-specs">
             <div className="detail-spec"><dt>Формат файла</dt><dd>STL · {m.mb} МБ</dd></div>
             <div className="detail-spec"><dt>Архив для скачивания</dt><dd>ZIP ≈ {zipMb(m)} МБ</dd></div>
-            <div className="detail-spec"><dt>Размер после печати</dt><dd>{m.dims || "—"}</dd></div>
-            <div className="detail-spec"><dt>Печать</dt><dd>{m.print || "—"}</dd></div>
+            {m.dims && <div className="detail-spec"><dt>Размер после печати</dt><dd>{m.dims}</dd></div>}
+            {m.print && <div className="detail-spec"><dt>Печать</dt><dd>{m.print}</dd></div>}
             <div className="detail-spec"><dt>Лицензия</dt><dd>личное использование и продажа отпечатков</dd></div>
             <div className="detail-spec"><dt>Доставка</dt><dd>сразу после оплаты</dd></div>
           </dl>
