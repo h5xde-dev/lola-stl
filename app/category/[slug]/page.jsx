@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import CategoryView from "@/components/CategoryView";
 import JsonLd from "@/lib/jsonld";
-import { getCategory, getModels } from "@/lib/models";
-import { DEFAULT_PRICES, boxPrice, paidPrice } from "@/lib/pricing";
+import { getCategory, getModels } from "@/lib/server/catalog";
+import { getPrices } from "@/lib/server/catalog";
+import { boxPrice, paidPrice } from "@/lib/pricing";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Страница категории собирается на сервере при каждом запросе.
@@ -29,7 +30,8 @@ export default async function CategoryPage({ params, searchParams }) {
   if (!c) { if ((await searchParams).local) return <CategoryView slug={slug} />; notFound(); }
   const list = (await getModels()).filter(m => m.category === c.id);
   const url = `${SITE_URL}/category/${c.slug}`;
-  const from = c.pricing === "box" ? boxPrice(DEFAULT_PRICES, 1, false) : paidPrice(DEFAULT_PRICES, 1);
+  const prices = await getPrices();
+  const from = c.pricing === "box" ? boxPrice(prices, 1, false) : paidPrice(prices, 1);
   return (
     <>
       <JsonLd data={{

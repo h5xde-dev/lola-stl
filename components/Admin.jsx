@@ -2,20 +2,66 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChevronDown, FolderTree, Layers, LayoutGrid, Plus, ReceiptText, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChevronDown, Cloud, CloudOff, FolderTree, Layers, LayoutGrid, LogOut, Mail, Plus, ReceiptText, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
-import { useStore } from "./Store";
+import { api, useStore } from "./Store";
 import { categoryHref, kindName, slugify } from "@/lib/models";
 import { listPrice, paidPrice, plantQuote, quote, today } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
 const live = s => s.models.filter(m => !m.deleted);
 
+const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit"];
+
+function AdminLogin({ onDone }) {
+  const [pw, setPw] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const submit = async e => {
+    e.preventDefault(); setBusy(true); setErr("");
+    const { ok, data } = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: pw }) });
+    setBusy(false);
+    if (ok) onDone(); else setErr(data.error || "Не получилось войти");
+  };
+  return (
+    <div className="inner-page"><form className="checkout-form" style={{ maxWidth: 380, margin: "60px auto" }} onSubmit={submit}>
+      <Brand sub="АДМИН-ПАНЕЛЬ" />
+      <label className="form-label">Пароль<input type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} autoFocus /></label>
+      {err && <span className="err">{err}</span>}
+      <button type="submit" className="button button-dark full" disabled={busy || !pw}>{busy ? "Входим…" : "Войти"}</button>
+      <p className="note">Пароль задаётся переменной ADMIN_PASSWORD в настройках сервера.</p>
+    </form></div>
+  );
+}
+
 export function AdminShell({ children }) {
-  const { s, promo, cats } = useStore();
+  const { s, promo, cats, admin, loadAdmin, toast } = useStore();
   const path = usePathname();
-  const tab = ["prices", "orders", "categories", "promo", "bundles"].find(t => path.startsWith("/admin/" + t)) || "models";
+  const [auth, setAuth] = useState("loading");
+  const [save, setSave] = useState("ok");
+  const snap = useRef(null);
+  useEffect(() => { loadAdmin().then(st => setAuth(st === 200 ? "ok" : st === 401 ? "login" : "error")); }, [loadAdmin]);
+
+  // Автосохранение: всё, что изменилось после загрузки из базы, через 0,7 с уходит на сервер.
+  useEffect(() => {
+    if (!admin) return;
+    const cur = Object.fromEntries(SYNC.map(k => [k, JSON.stringify(s[k] ?? null)]));
+    if (!snap.current || snap.current.at !== admin.loadedAt) { snap.current = { at: admin.loadedAt, json: cur }; return; }
+    const changed = SYNC.filter(k => cur[k] !== snap.current.json[k]);
+    if (!changed.length) return;
+    setSave("saving");
+    const t = setTimeout(async () => {
+      const { ok, data } = await api("/api/admin/state", { method: "PUT", body: JSON.stringify(Object.fromEntries(changed.map(k => [k, s[k]]))) });
+      if (ok) { changed.forEach(k => { snap.current.json[k] = cur[k]; }); setSave("ok"); }
+      else { setSave("error"); toast(data.error || "Не получилось сохранить изменения"); if (data && ok === false && data.error?.includes("вход")) setAuth("login"); }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [s, admin, toast]);
+
+  if (auth === "loading") return <div className="inner-page"><div className="skeleton" aria-busy="true">Загружаем данные…</div></div>;
+  if (auth === "login") return <AdminLogin onDone={() => loadAdmin().then(st => setAuth(st === 200 ? "ok" : "login"))} />;
+  if (auth === "error") return <div className="inner-page"><div className="empty-state">Сервер не ответил. Обновите страницу через минуту.</div></div>;
+
+  const tab = ["prices", "orders", "categories", "promo", "bundles", "outbox"].find(t => path.startsWith("/admin/" + t)) || "models";
   const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
     <div className="admin-page">
@@ -28,8 +74,13 @@ export function AdminShell({ children }) {
           {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
           {link("/admin/promo", BadgePercent, "Промокоды", (s.promoCodes || []).filter(c => !c.deleted && c.active).length, "promo")}
           {link("/admin/bundles", Layers, "Наборы", (s.bundles || []).filter(b => !b.deleted && b.active).length, "bundles")}
+          {link("/admin/outbox", Mail, "Письма", "", "outbox")}
         </nav>
-        <Link href="/" className="back-store"><ArrowLeft size={14} /> На сайт</Link>
+        <div className={"save-state " + save} role="status">
+          {save === "error" ? <><CloudOff size={14} /> Не сохранено</> : save === "saving" ? <><Cloud size={14} /> Сохраняем…</> : <><Cloud size={14} /> Всё сохранено</>}
+        </div>
+        <button type="button" className="back-store" style={{ border: 0, background: "none", cursor: "pointer", marginTop: 8 }} onClick={async () => { await api("/api/admin/logout", { method: "POST" }); location.reload(); }}><LogOut size={14} /> Выйти</button>
+        <Link href="/" className="back-store" style={{ marginTop: 8 }}><ArrowLeft size={14} /> На сайт</Link>
       </aside>
       <section className="admin-main">{children}</section>
     </div>
@@ -83,7 +134,7 @@ export function AdminModels() {
 const newDraft = cats => ({ id: "u" + Date.now().toString(36), slug: "", name: "", category: cats[0]?.id, cat: cats[0]?.pricing || "plant", material: "", tags: [], n: 6, twist: 1, prof: "cone", color: "#9fc7b0", h: .6, r: .26, mb: 0, hidden: true, isNew: true, photos: [], dims: "", print: "", desc: "", custom: true });
 
 export function AdminEditor({ id }) {
-  const { s, set, byId, toast, cats } = useStore();
+  const { s, set, byId, toast, cats, admin } = useStore();
   const router = useRouter();
   const isNew = id === "new";
   const [d, setD] = useState(() => isNew ? newDraft(cats) : byId[id] ? { photos: [], ...JSON.parse(JSON.stringify(byId[id])) } : null);
@@ -97,17 +148,30 @@ export function AdminEditor({ id }) {
   const upd = patch => setD(p => ({ ...p, ...patch }));
   const hasPh = d.photos && d.photos.length;
 
-  const startUpload = f => {
+  // Загрузка STL/ZIP: с S3 — напрямую в хранилище по ссылке с сервера, без S3 — на сервер сайта.
+  const startUpload = async f => {
     if (!f) return;
-    clearInterval(timer.current);
-    const total = Math.max(1, f.size / 1048576);
-    let done = 0;
-    setUpload({ total, done });
-    timer.current = setInterval(() => {
-      done = Math.min(total, done + Math.max(total / 30, .5));
-      if (done >= total) { clearInterval(timer.current); setUpload(null); upd({ mb: Math.max(1, Math.round(total)), file: f.name }); toast("Файл загружен"); }
-      else setUpload({ total, done });
-    }, 120);
+    const total = Math.max(.1, f.size / 1048576), ext = /\.zip$/i.test(f.name) ? "zip" : "stl";
+    setUpload({ total, done: 0 });
+    const target = `/api/admin/upload?model=${encodeURIComponent(d.id)}&ext=${ext}`;
+    let key, url = target, method = "POST";
+    if (admin?.services?.storage === "s3") {
+      const { ok, data } = await api(target, { method: "POST" });
+      if (!ok) { setUpload(null); toast(data.error || "Хранилище не ответило"); return; }
+      key = data.key; url = data.url; method = "PUT";
+    }
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.upload.onprogress = e => e.lengthComputable && setUpload({ total, done: e.loaded / 1048576 });
+    xhr.onload = () => {
+      setUpload(null);
+      if (xhr.status >= 300) { toast("Файл не загрузился. Попробуйте ещё раз."); return; }
+      if (!key) try { key = JSON.parse(xhr.responseText).key; } catch {}
+      upd({ fileKey: key, mb: Math.max(1, Math.round(total)), file: f.name });
+      toast("Файл загружен. Нажмите «Сохранить», чтобы модель получила новый файл.");
+    };
+    xhr.onerror = () => { setUpload(null); toast("Связь оборвалась. Попробуйте ещё раз."); };
+    xhr.send(f);
   };
   const addPhotos = files => {
     const list = Array.from(files || []).slice(0, 8);
@@ -195,13 +259,13 @@ export function AdminEditor({ id }) {
               {upload ? <>
                 <div className="prog"><i style={{ width: Math.round(upload.done / upload.total * 100) + "%" }} /></div>
                 <span className="mono" style={{ fontSize: 12, color: "var(--ink)" }}>Загрузка частями · {Math.round(upload.done)} из {Math.round(upload.total)} МБ</span>
-                <small>Если связь оборвётся, загрузка продолжится с того же места.</small>
+                <small>Не закрывайте страницу до конца загрузки.</small>
               </> : <>
                 {d.mb ? <><span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{d.file || (d.slug || "model") + ".stl"} · {d.mb} МБ</span><span>Покупатель получит ZIP ≈ {zipMb(d)} МБ.</span></>
                   : <span>Файл не загружен. Без файла модель нельзя показать в каталоге.</span>}
                 <label className="mini-btn" htmlFor="stlIn">{d.mb ? "Заменить файл" : "Выбрать STL или ZIP"}</label>
                 <input type="file" id="stlIn" accept=".stl,.zip" hidden onChange={e => { startUpload(e.target.files?.[0]); e.target.value = ""; }} />
-                <small>В прототипе файл никуда не отправляется.</small>
+                <small>{admin?.services?.storage === "s3" ? "Файл загружается напрямую в закрытое хранилище." : "Хранилище S3 не подключено: файл сохраняется на сервере сайта (только для проверки)."}</small>
               </>}
             </div></div>
           <div className="actions">
@@ -315,16 +379,20 @@ export function AdminPrices() {
 const ORDER_ST = { paid: ["Оплачен", ""], review: ["На проверке", "warn"], revoked: ["Доступ закрыт", "off"], refunded: ["Возврат", "off"] };
 
 export function AdminOrders() {
-  const { s, set, byId, toast } = useStore();
+  const { s, byId, toast, loadAdmin, admin } = useStore();
   const [open, setOpen] = useState(null);
   const limit = s.downloadLimit || 5;
   const os = s.orders.slice().sort((a, b) => b.date - a.date);
   const rev = os.filter(o => o.status !== "refunded").reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
   const nm = id => byId[id] ? byId[id].name : id;
-  const patch = (id, fn, msg) => { set(p => ({ orders: p.orders.map(o => o.id === id ? { ...o, ...fn(o) } : o) })); toast(msg); };
+  const act = async (id, action, msg) => {
+    const { ok, data } = await api(`/api/admin/orders/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ action }) });
+    toast(ok ? msg : data.error || "Не получилось");
+    if (ok) await loadAdmin();
+  };
   return (
     <>
-      <div className="adm-h"><div><Eyebrow /><h1>Заказы</h1></div></div>
+      <div className="adm-h"><div><Eyebrow /><h1>Заказы</h1></div>{admin?.pendingOrders > 0 && <span className="meta">ждут оплаты: {admin.pendingOrders}</span>}</div>
       <div className="stat-row">
         <div className="stat"><span>Заказов</span><b>{os.length}</b></div>
         <div className="stat"><span>Выручка</span><b>{rub(rev)}</b></div>
@@ -358,15 +426,15 @@ export function AdminOrders() {
                 <div>
                   <b className="od-h">Журнал скачиваний</b>
                   {(o.log || []).length ? <ul className="od-log">{o.log.slice(-8).reverse().map((e, i) => (
-                    <li key={i}><span className="mono">{new Date(e.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> · {nm(e.id)} · {e.ch === "tg" ? "Telegram" : "сайт"}<div className="meta">{e.ua}</div></li>))}</ul>
+                    <li key={i}><span className="mono">{new Date(e.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> · {nm(e.id)} · {e.ip}<div className="meta">{e.ua}</div></li>))}</ul>
                     : <p className="meta">Ещё не скачивали.</p>}
                   <div className="actions" style={{ marginTop: 10 }}>
-                    <button type="button" className="mini-btn" onClick={() => patch(o.id, () => ({ downloads: {} }), "Лимит скачиваний сброшен")}>Сбросить лимит</button>
+                    <button type="button" className="mini-btn" onClick={() => act(o.id, "reset", "Лимит скачиваний сброшен")}>Сбросить лимит</button>
                     {o.status === "review" || o.status === "revoked"
-                      ? <button type="button" className="mini-btn" onClick={() => patch(o.id, () => ({ status: "paid" }), "Доступ открыт")}>Открыть доступ</button>
-                      : <button type="button" className="mini-btn" onClick={() => patch(o.id, () => ({ status: "review" }), "Заказ на проверке: скачивание приостановлено")}>На проверку</button>}
-                    {o.status !== "revoked" && <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => patch(o.id, () => ({ status: "revoked" }), "Доступ к файлам закрыт")}>Закрыть доступ</button>}
-                    <button type="button" className="mini-btn" onClick={() => toast(o.ch === "tg" ? `Бот отправил новую ссылку на покупки ${o.tg}` : `Новая ссылка на покупки отправлена на ${o.email}`)}>Отправить ссылку ещё раз</button>
+                      ? <button type="button" className="mini-btn" onClick={() => act(o.id, "open", "Доступ открыт")}>Открыть доступ</button>
+                      : <button type="button" className="mini-btn" onClick={() => act(o.id, "review", "Заказ на проверке: скачивание приостановлено")}>На проверку</button>}
+                    {o.status !== "revoked" && <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => act(o.id, "revoke", "Доступ к файлам закрыт")}>Закрыть доступ</button>}
+                    <button type="button" className="mini-btn" onClick={() => act(o.id, "resend", "Новая ссылка на покупки отправлена")}>Отправить ссылку ещё раз</button>
                   </div>
                 </div>
               </div>
@@ -630,6 +698,44 @@ export function AdminBundles() {
               <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => { set(p => ({ bundles: p.bundles.map(x => x.id === b.id ? { ...x, deleted: true } : x), cart: p.cart.filter(x => x !== "set:" + b.id) })); toast(`Набор «${b.name}» удалён`); }}>Удалить</button></div></td>
           </tr>))}</tbody>
       </table></div>}
+    </>
+  );
+}
+
+// ---------- Письма и сообщения ----------
+export function AdminOutbox() {
+  const { admin } = useStore();
+  const [items, setItems] = useState(null);
+  useEffect(() => { api("/api/admin/outbox").then(r => setItems(r.ok ? r.data.items : [])); }, []);
+  const sv = admin?.services || {};
+  const link = t => t.replace(/https?:\/\/\S+/g, u => `\u0000${u}\u0000`).split("\u0000");
+  return (
+    <>
+      <div className="adm-h"><div><Eyebrow /><h1>Письма</h1></div></div>
+      <section className="panel"><h2>Подключённые сервисы</h2>
+        <div className="svc-grid">
+          {[["Оплата", sv.payments === "yookassa" ? "ЮKassa" : "тестовая страница", sv.payments === "yookassa"],
+            ["Почта", sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail === "smtp"],
+            ["Файлы", sv.storage === "s3" ? "S3-хранилище" : "папка на сервере", sv.storage === "s3"],
+            ["Telegram-бот", sv.telegram ? "подключён" : "нет токена", sv.telegram],
+            ["База", sv.db === "postgres" ? "PostgreSQL" : "встроенная (для проверки)", sv.db === "postgres"]].map(([t, v, on]) => (
+            <div key={t} className="stat"><span>{t}</span><b className={"svc " + (on ? "on" : "")}>{v}</b></div>))}
+        </div>
+        <p className="panel-sub">Что подключить и где взять ключи — в README, раздел «Рабочий режим».</p>
+      </section>
+      <p className="panel-sub">Каждое письмо покупателю и сообщение бота. Пока почта не подключена, письма не уходят, но ссылки из них можно открыть отсюда.</p>
+      {!items ? <div className="skeleton">Загрузка…</div> : !items.length ? <div className="empty-state">Писем пока не было.</div> :
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>Когда</th><th>Кому</th><th>Тема и текст</th><th>Статус</th></tr></thead>
+          <tbody>{items.map(m => (
+            <tr key={m.id}>
+              <td style={{ whiteSpace: "nowrap" }}>{new Date(m.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+              <td>{m.recipient}<div className="meta">{m.channel === "telegram" ? "Telegram" : "email"}</div></td>
+              <td style={{ whiteSpace: "pre-wrap", maxWidth: 520 }}>{m.subject && <b style={{ fontFamily: "var(--f-body)", fontWeight: 700, fontSize: 13 }}>{m.subject}<br /></b>}
+                <span className="meta" style={{ whiteSpace: "pre-wrap" }}>{link(m.body).map((p, i) => /^https?:/.test(p) ? <a key={i} href={p} className="text-link" style={{ fontSize: 12 }} target="_blank" rel="noreferrer">{p.length > 60 ? p.slice(0, 60) + "…" : p}</a> : p)}</span></td>
+              <td><span className={"status-pill " + (m.sent ? "" : "warn")}>{m.sent ? "отправлено" : "в журнале"}</span>{m.error && <div className="meta">{m.error}</div>}</td>
+            </tr>))}</tbody>
+        </table></div>}
     </>
   );
 }

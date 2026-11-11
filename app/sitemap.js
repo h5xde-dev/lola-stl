@@ -1,4 +1,4 @@
-import { getCategories, getModels } from "@/lib/models";
+import { getCategories, getModels } from "@/lib/server/catalog";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
-import { useStore } from "./Store";
+import { useServerQuote, useStore } from "./Store";
 import Effects from "./Effects";
 import { fmtDay, models, rub } from "@/lib/format";
 import { categoryHref } from "@/lib/models";
@@ -20,25 +20,20 @@ export function Brand({ sub = "STL-МОДЕЛИ ДЛЯ ПЕЧАТИ", href = "/"
 }
 
 function ProtoBar() {
-  const { s, set, promo, reset, toast } = useStore();
+  const { s, set, reset } = useStore();
   if (!DEMO) return null;
-  const onPromo = e => {
-    set({ promoAuto: false, promo: e.target.checked });
-    toast(e.target.checked ? "Акция «1+1» включена. Цены в корзине пересчитаны." : "Акция выключена. Снова действует «2+1».");
-  };
   return (
     <div className="proto">
       <div className="wrap proto-in">
         <span className="proto-label">Прототип</span>
-        <label className="switch"><input type="checkbox" checked={promo} onChange={onPromo} /><span className="track" />Акция «1+1»</label>
         <div className="seg" role="group" aria-label="Вид магазина">
           {[["site", "Сайт"], ["tg", "Telegram Mini App"]].map(([k, t]) => (
             <button key={k} type="button" aria-pressed={s.mode === k} onClick={() => set({ mode: k })}>{t}</button>
           ))}
         </div>
         <Link href="/admin" className="link-btn" style={{ color: "var(--ink)", fontWeight: 700 }}>Открыть админку</Link>
-        <button type="button" className="link-btn" onClick={reset}>Сбросить демо</button>
-        <span className="proto-note">Магазин и админка работают с одними данными.</span>
+        <button type="button" className="link-btn" onClick={reset}>Очистить корзину</button>
+        <span className="proto-note">Акцию «1+1» включают в админке. Без ключей ЮKassa оплата тестовая.</span>
       </div>
     </div>
   );
@@ -53,7 +48,8 @@ function Announcement() {
 
 
 function Header() {
-  const { s, set, Q, cats } = useStore();
+  const { s, set, cats } = useStore();
+  const Q = useServerQuote();
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const home = path === "/";
@@ -83,7 +79,7 @@ function Header() {
 }
 
 function TgMainButton() {
-  const { Q } = useStore();
+  const Q = useServerQuote();
   const path = usePathname(), router = useRouter();
   let label = null, go = null;
   if (!Q.count) return null;

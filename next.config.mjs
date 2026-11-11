@@ -2,6 +2,8 @@
 const nextConfig = {
   poweredByHeader: false,
   turbopack: { root: import.meta.dirname },
+  // Встроенный Postgres (PGlite) грузит свои файлы сам — его нельзя упаковывать сборщиком.
+  serverExternalPackages: ["@electric-sql/pglite"],
   // Фото моделей читаются картинками для соцсетей с диска, их нужно положить в серверную сборку.
   outputFileTracingIncludes: { "/**/opengraph-image*": ["./public/images/works/**"] },
   async headers() {

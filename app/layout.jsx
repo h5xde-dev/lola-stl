@@ -5,6 +5,7 @@ import Shell from "@/components/Shell";
 import { INDEXING, SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/site";
 import JsonLd from "@/lib/jsonld";
 import { organization, website } from "@/lib/schema";
+import { publicState } from "@/lib/server/shop";
 
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], weight: ["400", "500", "600", "700"], variable: "--font-manrope", display: "swap" });
 const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], weight: ["400", "500", "700"], variable: "--font-unbounded", display: "swap" });
@@ -31,12 +32,16 @@ export const metadata = {
 
 export const viewport = { themeColor: "#090713", colorScheme: "dark", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
-export default function RootLayout({ children }) {
+// Каталог, цены и акция читаются из базы при каждом запросе и передаются в браузер.
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }) {
+  const initial = await publicState();
   return (
     <html lang="ru" className={`${manrope.variable} ${unbounded.variable} ${mono.variable}`}>
       <body>
         <JsonLd data={{ "@context": "https://schema.org", "@graph": [organization(), website()] }} />
-        <StoreProvider>
+        <StoreProvider initial={initial}>
           <Shell>{children}</Shell>
         </StoreProvider>
       </body>

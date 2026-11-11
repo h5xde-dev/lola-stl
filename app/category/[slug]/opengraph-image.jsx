@@ -1,5 +1,5 @@
 import { OG_SIZE, ogImage } from "@/lib/og";
-import { getCategory, getModels } from "@/lib/models";
+import { getCategory, getModels } from "@/lib/server/catalog";
 import { models } from "@/lib/format";
 
 export const alt = "Категория STL-моделей lola.stl";

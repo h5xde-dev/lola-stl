@@ -1,76 +1,86 @@
 "use client";
-// Состояние прототипа: корзина, цены, акция, категории, модели и заказы.
-// На сервере и при первой отрисовке в браузере берутся исходные данные, поэтому HTML совпадает.
-// После загрузки страницы подмешиваются правки из localStorage (их делает админка прототипа).
+// Состояние магазина в браузере.
+// Каталог, цены, наборы и акция приходят с сервера (из базы) при отрисовке страницы.
+// В браузере хранятся только корзина, избранное, введённый промокод и вид (сайт / Telegram).
+// Покупки загружаются с сервера; админка загружает данные целиком и сохраняет изменения через API.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BASE_CATEGORIES, BASE_MODELS } from "@/lib/models";
-import { DEFAULT_PRICES, isSet, ownedIds, promoOn, quote } from "@/lib/pricing";
+import { isSet, ownedIds, promoOn, quote } from "@/lib/pricing";
 import { rub } from "@/lib/format";
 
-// Версия ключа меняется, когда меняется формат данных: старые сохранённые данные сбрасываются.
-const KEY = "lola-next-v4";
-const clone = v => JSON.parse(JSON.stringify(v));
+const KEY = "lola-cart-v1";
+const LOCAL = ["cart", "mode", "filter", "q", "email", "favs", "code"];
+const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "bundles", "promoCodes"];
 
-function seed() {
+function seed(initial) {
   return {
-    cart: [], promo: false, promoAuto: false, promoStart: "2026-11-20", promoEnd: "2026-11-30",
-    mode: "site", filter: "all", q: "", email: "", favs: [],
-    categories: clone(BASE_CATEGORIES),
-    models: clone(BASE_MODELS),
-    prices: clone(DEFAULT_PRICES),
-    orders: [],
-    // Скидки. Пример кода и набора — их можно изменить или удалить в админке.
-    code: "",
-    promoCodes: [
-      { id: "pc-lola10", code: "LOLA10", type: "percent", value: 10, active: true, from: "", to: "", maxUses: 0, once: true, minTotal: 0, category: "", firstOnly: true, duringPromo: false, note: "Для подписчиков канала, первый заказ" },
-    ],
-    bundles: [
-      { id: "kashpo-all", name: "Все кашпо", desc: "Пять кашпо из каталога одним набором.", items: ["p01", "p02", "p03", "p04", "p05"], price: 1800, active: true },
-    ],
-    loyalty: { on: true, percent: 10 },
-    downloadLimit: 5,
+    cart: [], mode: "site", filter: "all", q: "", email: "", favs: [], code: "",
+    categories: [], models: [], prices: null, promo: false, promoAuto: false, promoStart: "", promoEnd: "",
+    loyalty: { on: false, percent: 0 }, downloadLimit: 5, bundles: [], promoCodes: [], orders: [],
+    ...initial,
   };
-}
-
-// Добавляет к сохранённым правкам то, что появилось в каталоге после сохранения.
-function mergeNew(saved, base) {
-  const ids = new Set((saved || []).map(x => x.id));
-  return [...(saved || []), ...base.filter(x => !ids.has(x.id)).map(clone)];
 }
 
 const Ctx = createContext(null);
 
-export function StoreProvider({ children }) {
-  const [s, setS] = useState(seed);
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) }, cache: "no-store" });
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, data };
+}
+export { api };
+
+export function StoreProvider({ initial, children }) {
+  const [s, setS] = useState(() => seed(initial));
   const [ready, setReady] = useState(false);
+  const [me, setMe] = useState(null);           // { customer } после загрузки покупок
+  const [admin, setAdmin] = useState(null);     // { services, pendingOrders } когда загружена админка
   const [toastMsg, setToastMsg] = useState({ text: "", on: false });
   const [flash, setFlash] = useState(null);
   const tRef = useRef();
 
+  // Корзина и избранное — из браузера; покупки — с сервера
+  const loadMe = useCallback(async () => {
+    const { ok, data } = await api("/api/me");
+    if (ok) { setS(p => ({ ...p, orders: data.orders })); setMe({ customer: data.customer }); }
+    return data;
+  }, []);
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "null");
-      if (saved && Array.isArray(saved.cart) && Array.isArray(saved.models)) {
-        saved.models = mergeNew(saved.models, BASE_MODELS);
-        saved.categories = mergeNew(saved.categories, BASE_CATEGORIES);
-        setS(p => ({ ...p, ...saved }));
-      }
+      if (saved) setS(p => ({ ...p, ...Object.fromEntries(LOCAL.filter(k => k in saved).map(k => [k, saved[k]])) }));
     } catch {}
     setReady(true);
-  }, []);
-  useEffect(() => { if (ready) try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }, [s, ready]);
+    loadMe();
+    // Вход из Telegram Mini App: Telegram передаёт подписанные данные в адресе страницы
+    const tgData = new URLSearchParams(location.hash.slice(1)).get("tgWebAppData");
+    if (tgData) api("/api/tg/auth", { method: "POST", body: JSON.stringify({ initData: tgData }) }).then(r => { if (r.ok) { setS(p => ({ ...p, mode: "tg" })); loadMe(); } });
+  }, [loadMe]);
+  useEffect(() => {
+    if (!ready) return;
+    try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(LOCAL.map(k => [k, s[k]])))); } catch {}
+  }, [s, ready]);
 
   const set = useCallback(patch => setS(p => ({ ...p, ...(typeof patch === "function" ? patch(p) : patch) })), []);
   const toast = useCallback(text => {
     setToastMsg({ text, on: true });
     clearTimeout(tRef.current);
-    tRef.current = setTimeout(() => setToastMsg(t => ({ ...t, on: false })), 3200);
+    tRef.current = setTimeout(() => setToastMsg(t => ({ ...t, on: false })), 3600);
+  }, []);
+
+  // Админка: загрузить всё из базы
+  const loadAdmin = useCallback(async () => {
+    const { ok, status, data } = await api("/api/admin/state");
+    if (!ok) return status;
+    setS(p => ({ ...p, ...Object.fromEntries(CATALOG.map(k => [k, data[k]])), orders: data.orders }));
+    setAdmin({ services: data.services, pendingOrders: data.pendingOrders, loadedAt: Date.now() });
+    return 200;
   }, []);
 
   const byId = useMemo(() => Object.fromEntries(s.models.map(m => [m.id, m])), [s.models]);
   const cats = useMemo(() => [...(s.categories || [])].filter(c => !c.deleted).sort((a, b) => (a.order || 0) - (b.order || 0)), [s.categories]);
-  const Q = useMemo(() => quote(s, byId, { cats }), [s, byId, cats]);
+  // Оценка цены в браузере (мгновенно). Итог в корзине и при оплате подтверждает сервер.
+  const Q = useMemo(() => s.prices ? quote(s, byId, { cats }) : null, [s, byId, cats]);
   const owned = useMemo(() => ownedIds(s), [s]);
   const promo = promoOn(s);
 
@@ -93,7 +103,7 @@ export function StoreProvider({ children }) {
     if (inSet) { toast(`«${m.name}» уже входит в набор «${inSet.name}»`); return; }
     const next = quote({ ...s, cart: [...s.cart, id] }, byId, { cats });
     set(p => ({ cart: [...p.cart, id] }));
-    toast(m.cat === "plant" && Q.pq.free > 0 ? `«${m.name}» добавлена в подарок` : `«${m.name}» в корзине · ${rub(next.total)}`);
+    toast(m.cat === "plant" && Q?.pq.free > 0 ? `«${m.name}» добавлена в подарок` : `«${m.name}» в корзине · ${rub(next.total)}`);
   }, [byId, cats, s, Q, owned, set, toast]);
 
   const toggleFav = useCallback(id => {
@@ -102,9 +112,9 @@ export function StoreProvider({ children }) {
     if (on && byId[id]) toast(`«${byId[id].name}» в избранном`);
   }, [s.favs, byId, set, toast]);
 
-  const reset = useCallback(() => { setS(seed()); setFlash(null); toast("Демо сброшено"); }, [toast]);
+  const reset = useCallback(() => { set({ cart: [], favs: [], code: "", filter: "all", q: "" }); setFlash(null); toast("Корзина и избранное очищены"); }, [set, toast]);
 
-  const value = { s, set, ready, byId, cats, Q, owned, promo, toggleCart, toggleFav, toast, reset, flash, setFlash, toastMsg };
+  const value = { s, set, ready, me, loadMe, admin, loadAdmin, byId, cats, Q, owned, promo, toggleCart, toggleFav, toast, reset, flash, setFlash, toastMsg };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -114,8 +124,23 @@ export function useStore() {
   return v;
 }
 
-// Страницы с персональными данными (корзина, покупки, админка) показываются после загрузки,
-// чтобы не мигать демо-данными.
+// Итог корзины от сервера: промокоды, история покупателя, наборы. Пока ответа нет — оценка из браузера.
+export function useServerQuote() {
+  const { s, Q } = useStore();
+  const [server, setServer] = useState(null);
+  const key = JSON.stringify([s.cart, s.code, (s.orders || []).length]);
+  useEffect(() => {
+    let alive = true;
+    const t = setTimeout(async () => {
+      const { ok, data } = await api("/api/quote", { method: "POST", body: JSON.stringify({ cart: s.cart, code: s.code }) });
+      if (alive && ok) setServer({ ...data, owned: new Set(data.owned), key });
+    }, 150);
+    return () => { alive = false; clearTimeout(t); };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return server && server.key === key ? server : Q;
+}
+
+// Страницы с личными данными показываются после загрузки из браузера, чтобы не мигать пустыми.
 export function WhenReady({ children }) {
   const { ready } = useStore();
   return ready ? children : <div className="inner-page"><div className="skeleton" aria-busy="true">Загрузка…</div></div>;

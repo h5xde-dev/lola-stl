@@ -4,7 +4,7 @@ import { ArrowDown, ArrowRight, Download, Gift, MailCheck } from "lucide-react";
 import Catalog from "@/components/Catalog";
 import Hero3D from "@/components/Hero3D";
 import JsonLd from "@/lib/jsonld";
-import { getModels } from "@/lib/models";
+import { getModels } from "@/lib/server/catalog";
 import { SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/site";
 import { ORG_ID, SITE_ID } from "@/lib/schema";
 import { DEFAULT_PRICES, paidPrice } from "@/lib/pricing";
