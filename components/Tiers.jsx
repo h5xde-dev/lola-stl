@@ -1,4 +1,5 @@
 "use client";
+import { ChevronDown } from "lucide-react";
 import { useStore } from "./Store";
 import { paidPrice } from "@/lib/pricing";
 import { fmtDay, models, rub } from "@/lib/format";
@@ -9,8 +10,8 @@ export default function Tiers() {
   const pr = s.prices;
   const rows = [1, 2, 4, 6].map(a => [a, p ? a : Math.floor(a / 2), paidPrice(pr, a)]);
   return (
-    <section aria-label="Цены">
-      <div className={"promo-strip" + (p ? " on" : "")}>
+    <details className={"price-details" + (p ? " on" : "")}>
+      <summary className={"promo-strip" + (p ? " on" : "")}>
         <div>
           <span className="promo-spark" aria-hidden="true">✳</span>
           <span>
@@ -18,8 +19,8 @@ export default function Tiers() {
             <small>{p ? "К каждой оплаченной модели одна в подарок. «2+1» сейчас не действует." : "«2+1»: за каждые две оплаченные модели третья в подарок"}</small>
           </span>
         </div>
-        <span className="promo-toggle">Сейчас {p ? "1+1" : "2+1"}</span>
-      </div>
+        <span className="promo-toggle">Все цены <ChevronDown size={15} aria-hidden="true" /></span>
+      </summary>
       <div className="tiers">
         {rows.map(([a, g, price]) => (
           <div className="tier" key={a}>
@@ -36,6 +37,6 @@ export default function Tiers() {
           <span>На боксы подарки не распространяются</span>
         </div>
       </div>
-    </section>
+    </details>
   );
 }

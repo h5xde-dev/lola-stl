@@ -851,3 +851,150 @@ body { background: radial-gradient(ellipse at 82% 3%, #241338 0, var(--bg) 36rem
   .seg button { padding: 3px 9px; font-size: 11px; }
   .hero-cta { display: grid; grid-template-columns: 1fr; }
 }
+
+/* =========================================================
+   Чистовой слой: карточки, кнопки, бейджи, единые радиусы
+   ========================================================= */
+:root { --r-sm: 8px; --r: 12px; --r-lg: 16px; --glass: rgba(255, 255, 255, .06); --glass-line: rgba(255, 255, 255, .11); }
+
+/* кнопки */
+.button { border-radius: 10px; position: relative; overflow: hidden; isolation: isolate; }
+.button-dark::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%); transform: translateX(-120%); transition: transform .7s ease; }
+.button-dark:hover::after { transform: translateX(120%); }
+.button-outline { background: var(--glass); border-color: var(--glass-line); backdrop-filter: blur(8px); }
+.button-outline:hover { border-color: rgba(38, 241, 220, .6); color: var(--cyan); background: rgba(38, 241, 220, .06); }
+.btn, .mini-btn, .download-button { border-radius: var(--r-sm); }
+
+/* поиск и категории */
+.category-tab { border-radius: 99px; border: 1px solid transparent; transition: background .2s, color .2s, border-color .2s; }
+.category-tab:hover { border-color: var(--glass-line); color: var(--ink); }
+.category-tab[aria-pressed="true"] { background: rgba(38, 241, 220, .12); color: var(--cyan); border-color: rgba(38, 241, 220, .45); box-shadow: none; }
+.search-field { border-radius: 99px; background: var(--glass); border-color: var(--glass-line); padding: 0 14px; }
+
+/* карточка */
+.product-grid { grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 18px; }
+.product-card { padding: 8px; border-radius: var(--r-lg); background: linear-gradient(180deg, #17112a, #110d1c); border: 1px solid rgba(255, 255, 255, .06); --mx: 50%; --my: 0%;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .25s ease, border-color .25s, box-shadow .25s; will-change: transform; }
+.product-card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(260px circle at var(--mx) var(--my), rgba(255, 54, 207, .16), transparent 60%); }
+.product-card:hover::before { opacity: 1; }
+.product-card:hover { border-color: rgba(255, 54, 207, .35); box-shadow: 0 18px 40px rgba(0, 0, 0, .35), 0 0 30px rgba(255, 54, 207, .1); transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px); }
+.product-card.is-in { border-color: rgba(38, 241, 220, .35); }
+.product-media { border-radius: 10px; overflow: hidden; }
+.product-image { aspect-ratio: 1 / 1; }
+.product-media::after { display: none; }
+.product-body { padding: 12px 6px 4px; gap: 5px; }
+.product-body h3 { font-size: 15px; }
+.product-foot { border-top: 0; padding-top: 10px; }
+
+/* бейджи и «избранное» — стекло */
+.product-tags { top: 10px; left: 10px; gap: 5px; }
+.product-tag { border-radius: 99px; padding: 4px 9px; font-size: 10px; letter-spacing: .02em; background: rgba(12, 9, 22, .55); color: #f3ddff; border: 1px solid var(--glass-line); backdrop-filter: blur(8px); }
+.product-tag.new { background: linear-gradient(105deg, #ff36cf, #bf48ff); color: var(--accent-ink); border-color: transparent; }
+.favorite-button { top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(12, 9, 22, .5); border: 1px solid var(--glass-line); backdrop-filter: blur(8px); transition: color .2s, transform .2s, background .2s; }
+.favorite-button:hover { transform: scale(1.08); background: rgba(12, 9, 22, .7); }
+
+/* цена и кнопка «в корзину» */
+.price.in { display: inline-flex; align-items: center; gap: 5px; color: var(--cyan); font-size: 13px; }
+.add-button { width: 38px; height: 38px; border-radius: 50%; color: var(--ink); background: var(--glass); border: 1px solid var(--glass-line); box-shadow: none; transition: background .2s, color .2s, border-color .2s, transform .15s, box-shadow .2s; }
+.add-button:hover { color: var(--accent-ink); background: linear-gradient(105deg, #ff36cf, #bf48ff); border-color: transparent; box-shadow: 0 0 18px rgba(255, 54, 207, .4); }
+.add-button:active { transform: scale(.92); }
+.add-button.in { color: #071414; background: var(--cyan); border-color: transparent; box-shadow: 0 0 14px rgba(38, 241, 220, .35); }
+.add-button.in:hover { background: rgba(255, 96, 142, .9); color: #1a0710; box-shadow: none; }
+.add-button.gift { color: var(--cyan); background: rgba(38, 241, 220, .08); border-color: rgba(38, 241, 220, .5); box-shadow: none; }
+.add-button.gift:hover { color: #071414; background: var(--cyan); }
+
+/* блоки с единым скруглением */
+.promo-strip, .tiers, .summary-card, .checkout-form, .panel, .stat, .tbl-wrap, .account-banner, .gift-note, .promo-now, .summary-hint, .payment-option,
+.order-head, .digital-note, .id-note, .price-warning, .warn-box, .paycard, .cart-empty .empty-bag { border-radius: var(--r); }
+.editorial, .g-item, .detail-image, .shot.side { border-radius: var(--r-lg); }
+.form-label input, .f input[type="text"], .f input[type="date"], .f select, .f textarea, .pcell, .drop, .search { border-radius: 10px; }
+.benefit-row { border-radius: var(--r-lg); border: 1px solid var(--line); background: rgba(19, 16, 31, .5); }
+
+@media (max-width: 640px) {
+  .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .product-card { padding: 6px; border-radius: 14px; }
+  .product-body { padding: 8px 4px 2px; }
+  .product-tags { top: 6px; left: 6px; }
+  .favorite-button { top: 6px; right: 6px; width: 30px; height: 30px; }
+  .add-button { width: 34px; height: 34px; }
+}
+.tg .product-card { padding: 6px; }
+.tg .product-body { padding: 8px 4px 2px; }
+.tg .add-button { width: 34px; height: 34px; }
+@media (hover: none) { .product-card, .product-card:hover { transform: none; } }
+
+/* цены свёрнуты под полосой акции */
+.price-details { margin-bottom: 22px; }
+.price-details > summary { list-style: none; cursor: pointer; margin-bottom: 0; transition: border-color .2s, box-shadow .2s; }
+.price-details > summary::-webkit-details-marker { display: none; }
+.price-details > summary:hover { border-color: rgba(255, 54, 207, .6); box-shadow: 0 0 30px rgba(177, 55, 208, .2); }
+.price-details .promo-toggle { display: inline-flex !important; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 99px; background: var(--glass); border: 1px solid var(--glass-line); font-size: 12px; white-space: nowrap; }
+.price-details .promo-toggle svg { transition: transform .25s; }
+.price-details[open] .promo-toggle svg { transform: rotate(180deg); }
+.price-details[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.price-details .tiers { margin: 0; border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; overflow: hidden; animation: tiers-in .3s ease; }
+@keyframes tiers-in { from { opacity: 0; transform: translateY(-6px); } }
+.tg .price-details .tiers { border-radius: 0; padding-top: 10px; }
+@media (max-width: 640px) { .price-details .promo-toggle { font-size: 11px; padding: 5px 10px; } .price-details > summary { flex-wrap: nowrap; } .price-details > summary > div { min-width: 0; } }
+
+/* =========================================================
+   Анимации и живой фон
+   ========================================================= */
+/* появление при прокрутке (класс fx ставит Effects, без JS всё видно) */
+.fx :is([data-reveal], .product-card, .g-item, .benefit-row > div, .section-heading, .editorial, .detail-copy, .gallery):not([data-in]) { opacity: 0; translate: 0 22px; }
+.fx :is([data-reveal], .g-item, .benefit-row > div, .section-heading, .editorial, .detail-copy, .gallery)[data-in] { animation: rise .7s cubic-bezier(.2, .7, .2, 1) var(--d, 0ms) both; }
+.fx .product-card[data-in] { animation: rise-card .6s cubic-bezier(.2, .7, .2, 1) var(--d, 0ms) both; }
+@keyframes rise { from { opacity: 0; translate: 0 22px; } to { opacity: 1; translate: 0 0; } }
+@keyframes rise-card { from { opacity: 0; translate: 0 22px; } to { opacity: 1; translate: 0 0; } }
+
+/* живой фон: плывущие пятна и свечение за курсором */
+.bg-fx { position: fixed; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; }
+.blob { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(80px); opacity: .22; mix-blend-mode: screen; }
+.b1 { background: #ff36cf; top: -18vmax; left: -12vmax; animation: drift1 28s ease-in-out infinite alternate; }
+.b2 { background: #26f1dc; bottom: -22vmax; right: -14vmax; opacity: .14; animation: drift2 34s ease-in-out infinite alternate; }
+.b3 { background: #7a3cff; top: 30%; left: 40%; width: 34vmax; height: 34vmax; opacity: .16; animation: drift3 40s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(18vw, 22vh) scale(1.15); } }
+@keyframes drift2 { to { transform: translate(-22vw, -18vh) scale(1.1); } }
+@keyframes drift3 { to { transform: translate(-26vw, 14vh) scale(.85); } }
+.spot { position: absolute; inset: 0; background: radial-gradient(520px circle at var(--px, 50%) var(--py, 30%), rgba(255, 54, 207, .1), rgba(38, 241, 220, .04) 40%, transparent 70%); transition: background .1s; }
+body { background: var(--bg); }
+.tg .bg-fx { display: none; }
+
+/* фото в галерее: наклон и блик под курсором */
+.g-item { --mx: 50%; --my: 50%; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .3s ease, border-color .3s, box-shadow .3s; }
+.g-item::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s; background: radial-gradient(300px circle at var(--mx) var(--my), rgba(255, 255, 255, .16), transparent 60%); }
+.g-item:hover::after { opacity: 1; }
+.fx .g-item[data-in] { animation-name: rise; }
+
+/* коллаж в шапке: фото медленно «дышат» */
+.shot.side { animation: float 7s ease-in-out infinite; }
+.shot.s2 { animation-delay: -3.5s; }
+@keyframes float { 50% { translate: 0 -10px; } }
+.shot.main img { transition: transform 1.2s cubic-bezier(.2, .7, .2, 1); }
+.hero-collage:hover .shot.main img { transform: scale(1.04); }
+.hero h1 em { background: linear-gradient(100deg, #ff48d5, #bf48ff 40%, #26f1dc 80%, #ff48d5); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; animation: sheen 8s linear infinite; }
+@keyframes sheen { to { background-position: 220% center; } }
+.eyebrow-line { animation: pulse-line 3s ease-in-out infinite; }
+@keyframes pulse-line { 50% { opacity: .4; width: 34px; } }
+
+/* бегущая строка */
+.marquee { position: relative; overflow: hidden; border-block: 1px solid var(--line); background: rgba(19, 16, 31, .6); padding: 14px 0; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.marquee-track { display: flex; width: max-content; gap: 34px; animation: marquee 38s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.marquee span { display: inline-flex; align-items: center; gap: 34px; font: 500 15px var(--f-display); color: #e9dcf7; white-space: nowrap; }
+.marquee span::after { content: "✳"; color: var(--accent); font-size: 14px; }
+.marquee span:nth-child(3n)::after { color: var(--cyan); }
+@keyframes marquee { to { transform: translateX(-50%); } }
+.tg .marquee { display: none; }
+
+/* ряд преимуществ: подсветка иконок */
+.benefit-row > div { transition: transform .25s; }
+.benefit-row > div:hover { transform: translateY(-2px); }
+.benefit-row > div:hover .benefit-icon { background: linear-gradient(135deg, #ff36cf, #26f1dc); color: #0b0814; box-shadow: 0 0 20px rgba(255, 54, 207, .35); }
+.benefit-icon { transition: background .3s, color .3s, box-shadow .3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blob, .marquee-track, .shot.side, .hero h1 em, .eyebrow-line { animation: none !important; }
+  .product-card, .g-item { transform: none !important; }
+}

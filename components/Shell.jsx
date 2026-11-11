@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useStore } from "./Store";
+import Effects from "./Effects";
 import { fmtDay, models, rub } from "@/lib/format";
 
 const DEMO = process.env.NEXT_PUBLIC_DEMO !== "off";
@@ -98,6 +99,7 @@ export default function Shell({ children }) {
 
   return (
     <div className={cls}>
+      {!adm && <Effects />}
       <ProtoBar />
       <div className="stage">
         <div className="shell">

@@ -19,7 +19,7 @@ export function useOffer(m) {
 
 export function PriceLine({ m }) {
   const { inCart, gift, cost, hasSame } = useOffer(m);
-  if (inCart) return <span className="price in">В корзине</span>;
+  if (inCart) return <span className="price in"><Check size={13} aria-hidden="true" /> В корзине</span>;
   if (gift || cost === 0) return <span className="price gift">0 ₽<small>в подарок</small></span>;
   return <span className="price">{hasSame ? "+" : ""}{rub(cost)}{hasSame && <small>к заказу</small>}</span>;
 }

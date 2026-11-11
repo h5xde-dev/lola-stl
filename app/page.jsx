@@ -18,6 +18,8 @@ import leopard from "@/public/images/works/rassada-leopard.jpg";
 // поэтому после подключения базы новые модели появятся без пересборки.
 export const dynamic = "force-dynamic";
 
+const MARQUEE = ["Авторские STL-модели", "Шёлковый PLA", "Режим вазы", "Файлы сразу после оплаты", "Отпечатки можно продавать", "2 + 1 в подарок", "Без регистрации", "Проверено печатью"];
+
 const GALLERY = [
   { img: puzyri, slug: "puzyri", cls: "tall", tag: "Пара кашпо", text: "Пузырьковая текстура", alt: "Два кашпо с пузырьковой текстурой в сине-фиолетовом пластике" },
   { img: rassada9, slug: "lotok-kapli", cls: "wide", tag: "Лоток", text: "Для рассады на 9 горшков", alt: "Лоток для рассады на девять горшков с точечной текстурой" },
@@ -73,7 +75,17 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="wrap">
+      <div className="marquee" aria-hidden="true">
+        <div className="marquee-track">
+          {[0, 1].map(k => (
+            <div key={k} style={{ display: "flex", gap: 34 }}>
+              {MARQUEE.map(t => <span key={t}>{t}</span>)}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="wrap" style={{ marginTop: 28 }}>
         <section className="benefit-row" aria-label="Почему здесь удобно">
           <div><span className="benefit-icon"><Download size={18} /></span><span><b>Файлы сразу</b><small>Ссылки открываются после оплаты</small></span></div>
           <div><span className="benefit-icon"><MailCheck size={18} /></span><span><b>Без регистрации</b><small>Чек и ссылки придут на email</small></span></div>

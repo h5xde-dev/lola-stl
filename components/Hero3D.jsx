@@ -75,10 +75,10 @@ function makePot(THREE, o, quality) {
 
 // x, y — доля от половины видимой ширины/высоты; объекты держатся у краёв и в просветах.
 const LAYOUT = [
-  { surf: "tentacle", prof: "bulb", r: .66, h: 1.6, twist: 1.2, x: -.95, y: .86, z: -.5, tilt: -.25, spin: .18 },
+  { surf: "tentacle", prof: "bulb", r: .66, h: 1.6, twist: 1.2, x: -1.04, y: .94, z: -.5, tilt: -.25, spin: .18 },
   { surf: "daisy", prof: "cone", r: .62, h: 1.45, twist: 0, x: .04, y: .78, z: -2.4, tilt: .35, spin: -.16 },
   { surf: "facets", prof: "cyl", r: .58, h: 1.55, twist: 0, x: 1.0, y: .5, z: -1.6, tilt: .3, spin: .2 },
-  { surf: "coral", prof: "hour", r: .62, h: 1.3, twist: 0, x: -.78, y: -.78, z: -1.4, tilt: .4, spin: .12 },
+  { surf: "coral", prof: "hour", r: .62, h: 1.3, twist: 0, x: -1.0, y: -.9, z: -1.4, tilt: .4, spin: .12 },
   { surf: "bubbles", prof: "cyl", r: .6, h: 1.25, twist: 0, x: .96, y: -.72, z: -.8, tilt: -.35, spin: -.14 },
   { surf: "ribs", prof: "bulb", r: .5, h: 1.2, twist: .8, n: 18, x: .1, y: -.86, z: -3.4, tilt: .3, spin: .22 },
 ];
@@ -133,13 +133,23 @@ export default function Hero3D() {
           const k = (cam.position.z - L.z) / cam.position.z; // дальше — шире разброс
           const sx = small ? .82 : 1;
           g.userData.base = new THREE.Vector3(L.x * halfW * Math.min(k, 1) * .94 * sx, L.y * halfH * Math.min(k, 1), L.z);
-          g.scale.setScalar(small ? .72 : Math.min(1.15, Math.max(.8, W / 1300)));
+          g.userData.s0 = small ? .72 : Math.min(1.15, Math.max(.8, W / 1300));
+          g.scale.setScalar(g.userData.s0);
         });
       };
       place();
 
       const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
-      const onMove = e => { mouse.tx = (e.clientX / window.innerWidth - .5); mouse.ty = (e.clientY / window.innerHeight - .5); };
+      // Наведение: холст лежит под текстом, поэтому луч считается от координат курсора на окне.
+      const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(9, 9);
+      const meshes = list.map(o => o.g.children[0]);
+      let hovered = null;
+      const onMove = e => {
+        mouse.tx = (e.clientX / window.innerWidth - .5); mouse.ty = (e.clientY / window.innerHeight - .5);
+        const r = el.getBoundingClientRect();
+        ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        kick();
+      };
       window.addEventListener("pointermove", onMove, { passive: true });
 
       let visible = true, raf = 0, last = performance.now(), time = 0;
@@ -147,10 +157,18 @@ export default function Hero3D() {
         raf = 0;
         const dt = Math.min(.05, (now - last) / 1000); last = now; time += dt;
         mouse.x += (mouse.tx - mouse.x) * .04; mouse.y += (mouse.ty - mouse.y) * .04;
-        list.forEach(({ g, L, seed }) => {
+        ray.setFromCamera(ndc, cam);
+        const hit = ray.intersectObjects(meshes, false)[0];
+        hovered = hit ? list.find(o => o.g.children[0] === hit.object) : null;
+        list.forEach(o => {
+          const { g, L, seed } = o;
+          const on = o === hovered;
+          o.boost = (o.boost || 0) + ((on ? 1 : 0) - (o.boost || 0)) * Math.min(1, dt * 6);
+          const s0 = g.userData.s0 || 1;
+          g.scale.setScalar(s0 * (1 + .14 * o.boost));
           const b = g.userData.base;
           g.position.set(b.x + mouse.x * (1.2 - L.z * .15), b.y + Math.sin(time * .6 + seed) * .12 - mouse.y * .6, b.z);
-          g.rotation.y += L.spin * dt;
+          g.rotation.y += L.spin * dt * (1 + o.boost * 5);
           g.rotation.z = L.tilt + Math.sin(time * .4 + seed) * .06;
         });
         renderer.render(scene, cam);
