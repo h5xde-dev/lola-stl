@@ -8,7 +8,6 @@ import Effects from "./Effects";
 import { fmtDay, models, rub } from "@/lib/format";
 import { categoryHref } from "@/lib/models";
 
-const DEMO = process.env.NEXT_PUBLIC_DEMO !== "off";
 
 export function Brand({ sub = "STL-МОДЕЛИ ДЛЯ ПЕЧАТИ", href = "/" }) {
   return (
@@ -19,9 +18,9 @@ export function Brand({ sub = "STL-МОДЕЛИ ДЛЯ ПЕЧАТИ", href = "/"
   );
 }
 
-function ProtoBar() {
+function ProtoBar({ demo }) {
   const { s, set, reset } = useStore();
-  if (!DEMO) return null;
+  if (!demo) return null;
   return (
     <div className="proto">
       <div className="wrap proto-in">
@@ -90,7 +89,7 @@ function TgMainButton() {
   return <div className="tg-main tg-only"><button type="button" className="button button-dark full" onClick={go}>{label}</button></div>;
 }
 
-export default function Shell({ children }) {
+export default function Shell({ children, demo = true }) {
   const { s, toast, toastMsg } = useStore();
   const path = usePathname(), router = useRouter();
   const adm = path.startsWith("/admin");
@@ -99,7 +98,7 @@ export default function Shell({ children }) {
   return (
     <div className={cls}>
       {!adm && <Effects />}
-      <ProtoBar />
+      <ProtoBar demo={demo} />
       <div className="stage">
         <div className="shell">
           {!adm && <div className="site-only"><Announcement /></div>}

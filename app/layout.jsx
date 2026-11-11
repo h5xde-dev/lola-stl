@@ -42,7 +42,7 @@ export default async function RootLayout({ children }) {
       <body>
         <JsonLd data={{ "@context": "https://schema.org", "@graph": [organization(), website()] }} />
         <StoreProvider initial={initial}>
-          <Shell>{children}</Shell>
+          <Shell demo={(process.env.DEMO || process.env.NEXT_PUBLIC_DEMO) !== "off"}>{children}</Shell>
         </StoreProvider>
       </body>
     </html>

@@ -1,0 +1,65 @@
+# Сайт lola.stl на сервере с 2 ГБ памяти: сайт + Postgres + Caddy (HTTPS).
+# Лимиты памяти (≈ 0,9 ГБ на всё) оставляют запас системе и обработке фото; ещё 1 ГБ подстраховывает swap.
+# Запуск: docker compose up -d   (переменные — в файле .env рядом, пример в .env.example)
+
+services:
+  app:
+    image: ${APP_IMAGE:-ghcr.io/h5xde-dev/lola-stl:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://lola:${POSTGRES_PASSWORD}@db:5432/lola
+    depends_on:
+      db: { condition: service_healthy }
+    volumes:
+      - appdata:/app/.data          # кеш фото и локальные файлы, если S3 не подключён
+    mem_limit: 512m
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lola
+      POSTGRES_DB: lola
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Настройки под маленький сервер: база магазина занимает десятки мегабайт
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c effective_cache_size=192MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=20
+      -c wal_buffers=4MB
+      -c max_wal_size=256MB
+      -c checkpoint_completion_target=0.9
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lola -d lola"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 320m
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on: [app]
+    mem_limit: 96m
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+volumes:
+  pgdata:
+  appdata:
+  caddydata:
+  caddyconfig:

@@ -1,0 +1,67 @@
+# Сборка образа сайта и выкладка на сервер.
+# Сборка идёт здесь, на машине GitHub (7 ГБ памяти), — серверу с 2 ГБ остаётся только запустить готовый образ.
+# Для выкладки добавьте в Settings → Secrets and variables → Actions: SSH_HOST, SSH_USER, SSH_KEY.
+# Без них образ просто собирается и публикуется в ghcr.io.
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-24.04
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+    steps:
+      - name: Обновить сайт на сервере
+        if: env.SSH_HOST != ''
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /opt/lola-stl
+            docker compose pull app
+            docker compose up -d app
+            docker image prune -f
+      - name: Сервер не настроен
+        if: env.SSH_HOST == ''
+        run: echo "SSH_HOST не задан — образ опубликован в ghcr.io, выкладка пропущена"

@@ -44,5 +44,6 @@ export const PUT = wrap(async req => {
     st.downloads = { ...cur, limit: Math.max(1, Math.min(50, Math.round(+b.downloadLimit || 5))) };
   }
   if (Object.keys(st).length) await R.setSettings(st);
+  R.invalidate(); // сайт сразу показывает новые цены, акции и модели
   return json({ ok: true });
 });
