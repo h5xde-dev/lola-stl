@@ -1,0 +1,11 @@
+{
+  "name": "lola-stl-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Кликабельный прототип магазина lola.stl (статический сайт для Vercel)",
+  "scripts": {
+    "dev": "npx --yes serve@14.2.4 public -l 3000",
+    "deploy": "npx --yes vercel",
+    "deploy:prod": "npx --yes vercel --prod"
+  }
+}
