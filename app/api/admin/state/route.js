@@ -4,7 +4,7 @@ import * as R from "@/lib/server/repo";
 import { serializeOrders } from "@/lib/server/shop";
 import { provider } from "@/lib/server/pay";
 import { mailConfigured } from "@/lib/server/notify";
-import { s3Configured } from "@/lib/server/storage";
+import { deleteFile, s3Configured } from "@/lib/server/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,15 @@ export const PUT = wrap(async req => {
   const deny = await adminOnly(); if (deny) return deny;
   const b = await body(req);
   if (Array.isArray(b.categories)) await R.saveCategories(b.categories);
-  if (Array.isArray(b.models)) await R.saveModels(b.models);
+  if (Array.isArray(b.models)) {
+    // Модель получила новый файл — старый удаляем из хранилища. Файлы удалённых моделей остаются:
+    // те, кто их купил, сохраняют доступ.
+    const before = await R.getModelsAll();
+    await R.saveModels(b.models);
+    const used = new Set(b.models.map(m => m.fileKey).filter(Boolean));
+    const replaced = before.filter(o => o.fileKey && !used.has(o.fileKey) && b.models.some(m => m.id === o.id && !m.deleted && m.fileKey && m.fileKey !== o.fileKey));
+    await Promise.all(replaced.map(o => deleteFile(o.fileKey)));
+  }
   if (Array.isArray(b.promoCodes)) await R.savePromoCodes(b.promoCodes);
   if (Array.isArray(b.bundles)) await R.saveBundles(b.bundles);
   const st = {};

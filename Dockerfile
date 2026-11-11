@@ -1,12 +1,12 @@
 # Образ сайта для сервера. Собирается в GitHub Actions — на самом сервере сборка не запускается,
 # поэтому серверу хватает 2 ГБ памяти (сборка Next.js сама по себе требует 1–1,5 ГБ).
 
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Итоговый образ: только собранный сайт (режим standalone), без исходников и dev-зависимостей.
-FROM node:20-alpine AS run
+FROM node:22-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 \
     # Потолок памяти JS: процесс не разрастается и держится в лимите контейнера

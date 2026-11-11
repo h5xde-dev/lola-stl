@@ -6,6 +6,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChevronDown, Cloud, CloudO
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { api, useStore } from "./Store";
+import { uploadModelFile } from "./uploader";
 import { categoryHref, kindName, slugify } from "@/lib/models";
 import { listPrice, paidPrice, plantQuote, quote, today } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
@@ -141,37 +142,28 @@ export function AdminEditor({ id }) {
   const [err, setErr] = useState("");
   const [upload, setUpload] = useState(null);
   const [confirmDel, setConfirmDel] = useState(false);
-  const timer = useRef();
-  useEffect(() => () => clearInterval(timer.current), []);
+  const uploadJob = useRef(null);
 
   if (!d || d.deleted) return <div className="empty">Модель не найдена. <Link href="/admin">К списку</Link></div>;
   const upd = patch => setD(p => ({ ...p, ...patch }));
   const hasPh = d.photos && d.photos.length;
 
-  // Загрузка STL/ZIP: с S3 — напрямую в хранилище по ссылке с сервера, без S3 — на сервер сайта.
-  const startUpload = async f => {
+  // Загрузка STL/ZIP любого размера: частями прямо в хранилище (S3) или потоком на сервер.
+  const startUpload = f => {
     if (!f) return;
-    const total = Math.max(.1, f.size / 1048576), ext = /\.zip$/i.test(f.name) ? "zip" : "stl";
-    setUpload({ total, done: 0 });
-    const target = `/api/admin/upload?model=${encodeURIComponent(d.id)}&ext=${ext}`;
-    let key, url = target, method = "POST";
-    if (admin?.services?.storage === "s3") {
-      const { ok, data } = await api(target, { method: "POST" });
-      if (!ok) { setUpload(null); toast(data.error || "Хранилище не ответило"); return; }
-      key = data.key; url = data.url; method = "PUT";
-    }
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, url);
-    xhr.upload.onprogress = e => e.lengthComputable && setUpload({ total, done: e.loaded / 1048576 });
-    xhr.onload = () => {
+    const t0 = Date.now();
+    setUpload({ total: f.size / 1048576, done: 0, speed: 0 });
+    const job = uploadModelFile({ file: f, modelId: d.id, storage: admin?.services?.storage,
+      onProgress: (loaded, total) => setUpload(u => u && { ...u, total: total / 1048576, done: loaded / 1048576, speed: loaded / 1048576 / Math.max(1, (Date.now() - t0) / 1000) }) });
+    uploadJob.current = job;
+    job.promise.then(r => {
       setUpload(null);
-      if (xhr.status >= 300) { toast("Файл не загрузился. Попробуйте ещё раз."); return; }
-      if (!key) try { key = JSON.parse(xhr.responseText).key; } catch {}
-      upd({ fileKey: key, mb: Math.max(1, Math.round(total)), file: f.name });
+      upd({ fileKey: r.key, mb: Math.max(1, Math.round((r.size || f.size) / 1048576)), file: f.name });
       toast("Файл загружен. Нажмите «Сохранить», чтобы модель получила новый файл.");
-    };
-    xhr.onerror = () => { setUpload(null); toast("Связь оборвалась. Попробуйте ещё раз."); };
-    xhr.send(f);
+    }).catch(e => {
+      setUpload(null);
+      if (!e.aborted) toast(e.message === "network" ? "Связь оборвалась. Выберите тот же файл ещё раз — загрузка продолжится." : e.message);
+    }).finally(() => { uploadJob.current = null; });
   };
   const addPhotos = files => {
     const list = Array.from(files || []).slice(0, 8);
@@ -257,15 +249,18 @@ export function AdminEditor({ id }) {
           <div className="f"><span className="lbl">STL-файл</span>
             <div className="drop">
               {upload ? <>
-                <div className="prog"><i style={{ width: Math.round(upload.done / upload.total * 100) + "%" }} /></div>
-                <span className="mono" style={{ fontSize: 12, color: "var(--ink)" }}>Загрузка частями · {Math.round(upload.done)} из {Math.round(upload.total)} МБ</span>
-                <small>Не закрывайте страницу до конца загрузки.</small>
+                <div className="prog"><i style={{ width: Math.round(upload.done / Math.max(upload.total, .001) * 100) + "%" }} /></div>
+                <span className="mono" style={{ fontSize: 12, color: "var(--ink)" }}>
+                  {Math.round(upload.done)} из {Math.round(upload.total)} МБ · {upload.speed ? upload.speed.toFixed(1) + " МБ/с" : "…"}
+                  {upload.speed > 0 && upload.total > upload.done ? ` · осталось ~${Math.max(1, Math.round((upload.total - upload.done) / upload.speed / 60))} мин` : ""}</span>
+                <small>{admin?.services?.storage === "s3" ? "Файл уходит частями прямо в хранилище. Если связь оборвётся или вкладку закроют, выберите тот же файл ещё раз — загрузка продолжится." : "Не закрывайте страницу до конца загрузки."}</small>
+                <button type="button" className="mini-btn" onClick={() => uploadJob.current?.cancel()}>Отменить загрузку</button>
               </> : <>
                 {d.mb ? <><span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{d.file || (d.slug || "model") + ".stl"} · {d.mb} МБ</span><span>Покупатель получит ZIP ≈ {zipMb(d)} МБ.</span></>
                   : <span>Файл не загружен. Без файла модель нельзя показать в каталоге.</span>}
                 <label className="mini-btn" htmlFor="stlIn">{d.mb ? "Заменить файл" : "Выбрать STL или ZIP"}</label>
                 <input type="file" id="stlIn" accept=".stl,.zip" hidden onChange={e => { startUpload(e.target.files?.[0]); e.target.value = ""; }} />
-                <small>{admin?.services?.storage === "s3" ? "Файл загружается напрямую в закрытое хранилище." : "Хранилище S3 не подключено: файл сохраняется на сервере сайта (только для проверки)."}</small>
+                <small>{admin?.services?.storage === "s3" ? "STL или ZIP до 5 ГБ: загружается частями напрямую в закрытое хранилище." : "Хранилище S3 не подключено: файл до 5 ГБ сохраняется на диск сервера сайта."}</small>
               </>}
             </div></div>
           <div className="actions">
