@@ -721,7 +721,7 @@ export function AdminOutbox() {
       <section className="panel"><h2>Подключённые сервисы</h2>
         <div className="svc-grid">
           {[["Оплата", sv.yookassa ? "ЮKassa" : "ЮKassa не подключена", sv.yookassa],
-            ["Почта", sv.mail === "unisender" ? "Unisender Go" : sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail !== "journal"],
+            ["Почта", sv.mail === "unisender" ? "Unisender Go" : sv.mail === "unisender-classic" ? "Unisender" : sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail !== "journal"],
             ["Файлы", sv.storage === "s3" ? "S3-хранилище" : "папка на сервере", sv.storage === "s3"],
             ["Telegram-бот", sv.telegram ? "подключён" : "нет токена", sv.telegram],
             ["База", sv.db === "postgres" ? "PostgreSQL" : "встроенная (для проверки)", sv.db === "postgres"]].map(([t, v, on]) => (

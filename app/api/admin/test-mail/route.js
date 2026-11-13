@@ -9,7 +9,7 @@ export const POST = wrap(async req => {
   const deny = await adminOnly(); if (deny) return deny;
   const to = String((await body(req)).to || "").trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return bad("Укажите email");
-  if (!mailConfigured()) return bad("Почта не настроена: нужен UNISENDER_GO_API_KEY или SMTP_URL в настройках сервера");
+  if (!mailConfigured()) return bad("Почта не настроена: нужен UNISENDER_API_KEY, UNISENDER_GO_API_KEY или SMTP_URL в настройках сервера");
   const ok = await sendMail(to, "Проверка почты lola.stl", `Это тестовое письмо из админки ${SITE_URL}.\n\nЕсли вы его видите, письма покупателям доходят.`);
   if (ok) return json({ ok: true });
   const [last] = await outboxList(1);
