@@ -708,7 +708,7 @@ export function AdminOutbox() {
       <div className="adm-h"><div><Eyebrow /><h1>Письма</h1></div></div>
       <section className="panel"><h2>Подключённые сервисы</h2>
         <div className="svc-grid">
-          {[["Оплата", sv.payments === "yookassa" ? "ЮKassa" : "тестовая страница", sv.payments === "yookassa"],
+          {[["Оплата", sv.payments === "yookassa" ? "ЮKassa" : sv.payments === "mock" ? "тестовая страница" : "не подключена", sv.payments === "yookassa"],
             ["Почта", sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail === "smtp"],
             ["Файлы", sv.storage === "s3" ? "S3-хранилище" : "папка на сервере", sv.storage === "s3"],
             ["Telegram-бот", sv.telegram ? "подключён" : "нет токена", sv.telegram],
