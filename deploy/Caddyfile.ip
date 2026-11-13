@@ -1,0 +1,9 @@
+# Временный вариант: сайт по IP без домена, только HTTP.
+# Когда A-запись домена будет готова, замените на Caddyfile и задайте DOMAIN и SITE_URL=https://… в .env.
+:80 {
+	encode zstd gzip
+	@static path /_next/static/* /images/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	header -Server
+	reverse_proxy app:3000
+}
