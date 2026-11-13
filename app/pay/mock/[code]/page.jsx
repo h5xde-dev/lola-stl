@@ -1,11 +1,12 @@
-import MockPay from "@/components/MockPay";
-import { provider } from "@/lib/server/pay";
 import { notFound } from "next/navigation";
+import MockPay from "@/components/MockPay";
+import { testEnabled } from "@/lib/server/pay";
+import { getSettings } from "@/lib/server/repo";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Тестовая оплата", robots: { index: false, follow: false } };
-// Страница оплаты, пока не подключена ЮKassa: позволяет пройти весь путь заказа без денег.
+// Страница тестовой оплаты: весь путь заказа без денег. Включается в админке → «Оплата».
 export default async function Page({ params }) {
-  if (provider() !== "mock") notFound();
+  if (!testEnabled(await getSettings())) notFound();
   return <MockPay code={(await params).code} />;
 }

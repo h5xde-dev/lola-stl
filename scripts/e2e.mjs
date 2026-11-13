@@ -1,4 +1,4 @@
-// Проверка всего пути покупки через API на чистой базе: rm -rf .data, сервер с ADMIN_LOGIN=lola ADMIN_PASSWORD=lola DEMO=off ALLOW_TEST_PAYMENTS=on, затем npm run e2e
+// Проверка всего пути покупки через API на чистой базе: rm -rf .data, сервер в рабочем режиме с ADMIN_LOGIN=lola ADMIN_PASSWORD=lola DEMO=off, затем npm run e2e
 const B = process.env.BASE_URL || "http://localhost:3000";
 const AL = process.env.ADMIN_LOGIN || "lola";
 const jar = () => { const c = {}; return {
@@ -11,6 +11,19 @@ const ok = (cond, msg) => { console.log((cond ? "✓ " : "✗ ") + msg); if (!co
 const j = r => r.json();
 
 const A = jar(), Bx = jar(), adm = jar();
+// Оплата: без ЮKassa и без тестовой оплаты оформить заказ нельзя; тестовая включается из админки
+await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: process.env.ADMIN_PASSWORD || "lola" }) });
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: false } }) });
+let r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "test" }) });
+ok(r0.status === 400 && /не подключена/.test((await j(r0)).error), "без способов оплаты заказ не оформить");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: true, testFor: "admin" } }) });
+r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "test" }) });
+ok(r0.status === 400, "тестовая оплата «только мне» недоступна посетителю");
+r0 = await adm.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "owner@b.ru", agree: true, method: "test" }) });
+ok(r0.status === 200 && (await j(r0)).url.startsWith("/pay/mock/"), "владелице тестовая оплата доступна");
+r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "sbp" }) });
+ok(r0.status === 400, "СБП без ЮKassa недоступна");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: true, testFor: "all", sbp: true, card: true } }) });
 const home = await (await A.f("/")).text();
 ok(home.includes("Глубина") && home.includes("Все кашпо"), "главная из базы: модели и набор");
 
@@ -24,7 +37,7 @@ ok(q.codeNote === "Такого промокода нет" && q.total === 700, "
 let r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "x" , agree: true }) });
 ok(r.status === 400, "плохой email — ошибка 400");
 // заказ
-r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["set:kashpo-all", "p07"], code: "LOLA10", email: "Buyer@Example.ru", agree: true, channel: "site", method: "СБП", total: 1 }) });
+r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["set:kashpo-all", "p07"], code: "LOLA10", email: "Buyer@Example.ru", agree: true, channel: "site", method: "test", total: 1 }) });
 const co = await j(r);
 ok(r.status === 200 && co.total === 2430 && co.url.startsWith("/pay/mock/"), `заказ ${co.code} создан, сумма с сервера ${co.total}, клиентская 1 ₽ проигнорирована`);
 ok(!!A.c.lola_o, "браузер покупателя получил доступ к заказу");
@@ -47,7 +60,7 @@ r = await A.f("/api/download", { method: "POST", body: JSON.stringify({ order: c
 let dl = await j(r);
 ok(r.status === 200 && dl.url.startsWith("/api/files/") && dl.left === 4, `ссылка выдана, осталось ${dl.left}`);
 const file = await A.f(dl.url);
-ok(file.status === 200 && /glubina_L-1001\.stl/.test(decodeURIComponent(file.headers.get("content-disposition"))), "файл отдаётся с номером заказа в имени");
+ok(file.status === 200 && new RegExp(`glubina_${co.code}\\.stl`).test(decodeURIComponent(file.headers.get("content-disposition"))), "файл отдаётся с номером заказа в имени");
 ok((await Bx.f(dl.url)).status === 200, "ссылка на файл работает 5 минут у любого (поэтому короткая)");
 ok((await A.f("/api/files/" + "x." + "y")).status === 410, "поддельный токен — 410");
 ok((await Bx.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) })).status === 403, "чужой браузер не получает ссылку");
@@ -62,9 +75,8 @@ r = await A.f("/api/download", { ip: "40.0.1.5", method: "POST", body: JSON.stri
 ok(r.status === 423, "четвёртая сеть за сутки — заказ на проверке");
 
 // админка
-ok((await adm.f("/api/admin/state")).status === 401, "админка без входа закрыта");
+ok((await jar().f("/api/admin/state")).status === 401, "админка без входа закрыта");
 ok((await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: "wrong" }) })).status === 401, "неверный пароль не пускает");
-await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: process.env.ADMIN_PASSWORD || "lola" }) });
 let as = await j(await adm.f("/api/admin/state"));
 ok(as.orders[0].status === "review" && as.orders[0].log.length >= 7, `админка видит заказ на проверке и журнал (${as.orders[0].log.length})`);
 await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "open" }) });
@@ -88,10 +100,10 @@ ok(r.headers.get("location").includes("expired"), "повторное откры
 // повторная покупка: купленное исключено, LOLA10 уже использован, скидка постоянного
 q = await j(await Bx.f("/api/quote", { method: "POST", body: JSON.stringify({ cart: ["p01", "p06"], code: "LOLA10" }) }));
 ok(q.lines.length === 1 && q.lines[0].id === "p06", "купленная модель не считается второй раз");
-ok(q.discount?.kind === "loyalty" && q.total === 630 && /использовали|постоянного/.test(q.codeNote), `скидка постоянного: ${q.total} ₽, промокод: «${q.codeNote}»`);
+ok(q.discount?.kind === "code" && q.total === 630, `тестовый заказ не даёт скидку постоянного и не расходует промокод: ${q.total} ₽`);
 // чужой email не даёт скидку постоянного
 const C = jar();
-r = await C.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p06"], email: "buyer@example.ru", agree: true }) });
+r = await C.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p06"], email: "buyer@example.ru", agree: true, method: "test" }) });
 ok((await j(r)).total === 700, "чужой email без входа не даёт скидку постоянного");
 
 // автосохранение админки: включить акцию 1+1
@@ -143,5 +155,12 @@ ok((await jar().f("/api/admin/media", { method: "POST", body: png })).status ===
 
 // аналитика
 const an = await j(await adm.f("/api/admin/analytics?days=30"));
-ok(an.kpi.orders >= 1 && an.kpi.revenue >= 2430 && an.series.length >= 30 && an.top.length > 0, `аналитика: ${an.kpi.orders} заказ(ов), ${an.kpi.revenue} ₽`);
+ok(an.kpi.orders === 0 && an.testOrders >= 1 && an.series.length >= 30, `аналитика не считает тестовые заказы (${an.testOrders})`);
+as = await j(await adm.f("/api/admin/state"));
+ok(as.orders.every(o => o.test) && as.testOrders >= 1, "заказы помечены как тестовые");
+const del = await j(await adm.f("/api/admin/test-orders", { method: "DELETE" }));
+as = await j(await adm.f("/api/admin/state"));
+ok(del.deleted >= 1 && as.orders.length === 0, `тестовые заказы удалены (${del.deleted})`);
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: false } }) });
+ok((await jar().f(`/pay/mock/${co.code}`)).status === 404, "страница тестовой оплаты закрыта, когда тест выключен");
 ok((await jar().f("/api/admin/analytics")).status === 401, "аналитика только для админа");

@@ -17,10 +17,10 @@ export default function MockPay({ code }) {
   return (
     <div className="inner-page">
       <div className="paycard" style={{ margin: "40px auto" }}>
-        <span className="bank">Тестовая оплата · ЮKassa не подключена</span>
+        <span className="bank">Тестовая оплата · без списания денег</span>
         <span>Заказ {code} в магазине lola.stl</span>
         {o?.error ? <span className="err">{o.error}</span> : <b className="amt">{o ? rub(o.total) : "…"}</b>}
-        <span className="note">Деньги не списываются. Когда в настройках появятся ключи ЮKassa, здесь будет её страница оплаты картой или по СБП.</span>
+        <span className="note">Деньги не списываются. Заказ помечается как тестовый: в аналитику не попадает, его можно удалить в админке → «Оплата».</span>
         <button type="button" className="button button-dark full" disabled={busy || !o || o.error || o.status !== "pending"} onClick={() => act("pay")}>Оплатить</button>
         <button type="button" className="button button-outline full" disabled={busy || !o || o.error} onClick={() => act("cancel")}>Отменить</button>
       </div>

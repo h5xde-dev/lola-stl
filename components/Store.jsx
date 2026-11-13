@@ -10,7 +10,7 @@ import { rub } from "@/lib/format";
 
 const KEY = "lola-cart-v1";
 const LOCAL = ["cart", "mode", "filter", "q", "email", "favs", "code"];
-const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "bundles", "promoCodes", "articles", "home", "seo", "company"];
+const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "bundles", "promoCodes", "articles", "home", "seo", "company", "payments"];
 
 function seed(initial) {
   return {
@@ -42,7 +42,7 @@ export function StoreProvider({ initial, children }) {
   // Корзина и избранное — из браузера; покупки — с сервера
   const loadMe = useCallback(async () => {
     const { ok, data } = await api("/api/me");
-    if (ok) { setS(p => ({ ...p, orders: data.orders })); setMe({ customer: data.customer }); }
+    if (ok) { setS(p => ({ ...p, orders: data.orders })); setMe({ customer: data.customer, admin: !!data.admin }); }
     return data;
   }, []);
   useEffect(() => {
@@ -70,7 +70,7 @@ export function StoreProvider({ initial, children }) {
     const { ok, status, data } = await api("/api/admin/state");
     if (!ok) return status;
     setS(p => ({ ...p, ...Object.fromEntries(CATALOG.map(k => [k, data[k]])), orders: data.orders }));
-    setAdmin({ services: data.services, pendingOrders: data.pendingOrders, loadedAt: Date.now() });
+    setAdmin({ services: data.services, pendingOrders: data.pendingOrders, testOrders: data.testOrders, loadedAt: Date.now() });
     return 200;
   }, []);
 

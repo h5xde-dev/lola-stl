@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChartColumn, ChevronDown, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChartColumn, ChevronDown, CreditCard, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { api, useStore } from "./Store";
@@ -15,7 +15,7 @@ import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
 const live = s => s.models.filter(m => !m.deleted);
 
-const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "articles", "home", "seo", "company"];
+const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "articles", "home", "seo", "company", "payments"];
 
 function AdminLogin({ onDone }) {
   const [login, setLogin] = useState(""), [pw, setPw] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
@@ -64,7 +64,7 @@ export function AdminShell({ children }) {
   if (auth === "login") return <AdminLogin onDone={() => loadAdmin().then(st => setAuth(st === 200 ? "ok" : "login"))} />;
   if (auth === "error") return <div className="inner-page"><div className="empty-state">Сервер не ответил. Обновите страницу через минуту.</div></div>;
 
-  const tab = ["prices", "orders", "categories", "promo", "bundles", "outbox", "analytics", "home", "articles", "seo"].find(t => path.startsWith("/admin/" + t)) || "models";
+  const tab = ["prices", "orders", "categories", "promo", "bundles", "outbox", "analytics", "home", "articles", "seo", "payments"].find(t => path.startsWith("/admin/" + t)) || "models";
   const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
     <div className="admin-page">
@@ -77,6 +77,7 @@ export function AdminShell({ children }) {
           {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
           {link("/admin/promo", BadgePercent, "Промокоды", (s.promoCodes || []).filter(c => !c.deleted && c.active).length, "promo")}
           {link("/admin/bundles", Layers, "Наборы", (s.bundles || []).filter(b => !b.deleted && b.active).length, "bundles")}
+          {link("/admin/payments", CreditCard, "Оплата", s.payments?.test ? "тест" : "", "payments")}
           {link("/admin/analytics", ChartColumn, "Аналитика", "", "analytics")}
           {link("/admin/home", House, "Главная", "", "home")}
           {link("/admin/articles", Newspaper, "Статьи", (s.articles || []).filter(a => !a.deleted && a.published).length, "articles")}
@@ -380,7 +381,7 @@ export function AdminOrders() {
   const [open, setOpen] = useState(null);
   const limit = s.downloadLimit || 5;
   const os = s.orders.slice().sort((a, b) => b.date - a.date);
-  const rev = os.filter(o => o.status !== "refunded").reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
+  const rev = os.filter(o => o.status !== "refunded" && !o.test).reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
   const nm = id => byId[id] ? byId[id].name : id;
   const act = async (id, action, msg) => {
     const { ok, data } = await api(`/api/admin/orders/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ action }) });
@@ -403,7 +404,7 @@ export function AdminOrders() {
           const st = ORDER_ST[o.status || "paid"], used = Object.values(o.downloads || {}).reduce((a, b) => a + b, 0);
           return [
             <tr key={o.id}>
-              <td className="mono">{o.id}<div className="meta"><span className="ch">{o.ch === "tg" ? "Telegram" : "Сайт"}</span></div></td>
+              <td className="mono">{o.id}<div className="meta"><span className="ch">{o.ch === "tg" ? "Telegram" : "Сайт"}</span>{o.test && <> <span className="tag test">тест</span></>}</div></td>
               <td style={{ whiteSpace: "nowrap" }}>{new Date(o.date).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
               <td>{o.tg || o.email}{o.tg && <div className="meta">{o.email}</div>}</td>
               <td title={o.items.map(nm).join(", ")}>{models(o.items.length)}<div className="meta">{(o.sets || []).length ? `набор: ${o.sets.join(", ")}` : o.items.slice(0, 2).map(nm).join(", ") + (o.items.length > 2 ? "…" : "")}</div></td>
@@ -713,7 +714,7 @@ export function AdminOutbox() {
       <div className="adm-h"><div><Eyebrow /><h1>Письма</h1></div></div>
       <section className="panel"><h2>Подключённые сервисы</h2>
         <div className="svc-grid">
-          {[["Оплата", sv.payments === "yookassa" ? "ЮKassa" : sv.payments === "mock" ? "тестовая страница" : "не подключена", sv.payments === "yookassa"],
+          {[["Оплата", sv.yookassa ? "ЮKassa" : "ЮKassa не подключена", sv.yookassa],
             ["Почта", sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail === "smtp"],
             ["Файлы", sv.storage === "s3" ? "S3-хранилище" : "папка на сервере", sv.storage === "s3"],
             ["Telegram-бот", sv.telegram ? "подключён" : "нет токена", sv.telegram],

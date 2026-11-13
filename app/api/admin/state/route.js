@@ -6,6 +6,8 @@ import { provider } from "@/lib/server/pay";
 import { mailConfigured } from "@/lib/server/notify";
 import { deleteFile, s3Configured } from "@/lib/server/storage";
 import { mergeCompany, mergeHome, mergeSeo } from "@/lib/content";
+import { mergePayments, PAY_METHODS } from "@/lib/payments";
+import { yookassaReady } from "@/lib/server/pay";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +20,13 @@ export const GET = wrap(async () => {
   ]);
   return json({
     categories, models, promoCodes, bundles, articles,
-    home: mergeHome(st.home), seo: mergeSeo(st.seo), company: mergeCompany(st.company),
+    home: mergeHome(st.home), seo: mergeSeo(st.seo), company: mergeCompany(st.company), payments: mergePayments(st.payments),
     prices: st.prices, promo: !!st.promo?.on, promoAuto: !!st.promo?.auto, promoStart: st.promo?.start, promoEnd: st.promo?.end,
     loyalty: st.loyalty, downloadLimit: st.downloads?.limit || 5, downloadNets: st.downloads?.nets || 3,
     orders: (await serializeOrders(orders.filter(o => o.status !== "pending"), { withLog: true })),
     pendingOrders: orders.filter(o => o.status === "pending").length,
-    services: { payments: provider(), mail: mailConfigured() ? "smtp" : "journal", storage: s3Configured() ? "s3" : "local", telegram: !!process.env.TELEGRAM_BOT_TOKEN, db: process.env.DATABASE_URL ? "postgres" : "pglite" },
+    testOrders: orders.filter(o => o.test).length,
+    services: { yookassa: yookassaReady(), payments: provider(), mail: mailConfigured() ? "smtp" : "journal", storage: s3Configured() ? "s3" : "local", telegram: !!process.env.TELEGRAM_BOT_TOKEN, db: process.env.DATABASE_URL ? "postgres" : "pglite" },
   });
 });
 
@@ -48,6 +51,7 @@ export const PUT = wrap(async req => {
   const obj = v => v && typeof v === "object" && !Array.isArray(v);
   if (obj(b.home)) st.home = b.home;
   if (obj(b.seo)) st.seo = Object.fromEntries(Object.entries(b.seo).map(([k, v]) => [k, String(v ?? "").slice(0, 2000)]));
+  if (obj(b.payments)) st.payments = { ...Object.fromEntries(PAY_METHODS.map(m => [m.id, !!b.payments[m.id]])), testFor: b.payments.testFor === "all" ? "all" : "admin" };
   if (obj(b.company)) st.company = Object.fromEntries(Object.entries(b.company).map(([k, v]) => [k, String(v ?? "").slice(0, 300)]));
   if (b.prices) st.prices = b.prices;
   if ("promo" in b || "promoAuto" in b || "promoStart" in b || "promoEnd" in b) {

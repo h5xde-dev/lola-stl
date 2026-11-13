@@ -39,7 +39,7 @@ export default async function Receipt({ params }) {
           <div><dt>Дата оплаты</dt><dd>{fmt(o.paid_at)}</dd></div>
           {o.email && <div><dt>Покупатель</dt><dd>{o.email}</dd></div>}
           <div><dt>Способ оплаты</dt><dd>{o.method || "Банковская карта / СБП"}</dd></div>
-          <div><dt>Статус</dt><dd>{o.status === "refunded" ? "Возврат" : "Оплачен"}</dd></div>
+          <div><dt>Статус</dt><dd>{o.test ? "Тестовый, без оплаты" : o.status === "refunded" ? "Возврат" : "Оплачен"}</dd></div>
         </dl>
         <table className="receipt-lines">
           <thead><tr><th>Позиция</th><th>Сумма</th></tr></thead>
@@ -54,7 +54,7 @@ export default async function Receipt({ params }) {
           </tfoot>
         </table>
         <p className="receipt-note">Предмет расчёта — результат интеллектуальной деятельности (право использования STL-файлов).{(process.env.YOOKASSA_VAT_CODE || "1") === "1" ? " Без НДС." : ""}</p>
-        {fiscal ? (
+        {o.test ? <p className="receipt-note"><b>Тестовый заказ</b> — оформлен тестовой оплатой без списания денег, кассового чека нет.</p> : fiscal ? (
           <dl className="receipt-meta fiscal">
             <div><dt>ФН</dt><dd>{fiscal.fn}</dd></div>
             <div><dt>ФД</dt><dd>{fiscal.fd}</dd></div>

@@ -1,7 +1,7 @@
 import { bad, json, wrap } from "@/lib/server/http";
 import { getCustomerId, getOrderAccess } from "@/lib/server/auth";
 import { orderById, orderIdFromCode } from "@/lib/server/repo";
-import { fetchPayment, provider } from "@/lib/server/pay";
+import { fetchPayment, yookassaReady } from "@/lib/server/pay";
 import { finalize } from "@/lib/server/shop";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export const GET = wrap(async (req, { params }) => {
   let o = await orderById(id);
   const cid = await getCustomerId(), access = await getOrderAccess();
   if (!o || !(o.customer_id === cid || access.includes(o.id))) return bad("Заказ не найден", 404);
-  if (o.status === "pending" && o.payment_id && provider() === "yookassa") {
+  if (o.status === "pending" && o.payment_id && !o.test && yookassaReady()) {
     const p = await fetchPayment(o.payment_id);
     if (p?.paid && p.orderId === o.id) { await finalize(o.id); o = await orderById(id); }
   }

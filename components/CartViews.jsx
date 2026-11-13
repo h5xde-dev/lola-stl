@@ -8,6 +8,7 @@ import ProductCard from "./ProductCard";
 import { api, useServerQuote, useStore } from "./Store";
 import { fmtDate, fmtDay, models, rub, zipMb } from "@/lib/format";
 import { modelHref } from "@/lib/models";
+import { PAY_METHODS } from "@/lib/payments";
 
 // Поле промокода. Код хранится в состоянии; применять или нет, решает расчёт цены.
 function PromoField() {
@@ -123,11 +124,15 @@ export function CartView() {
 }
 
 export function CheckoutView() {
-  const { s, set } = useStore();
+  const { s, set, me } = useStore();
   const Q = useServerQuote();
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const tg = s.mode === "tg";
+  // Способы оплаты из админки; тестовая «только для меня» видна, когда открыта админка в этом браузере
+  const ids = [...(s.payMethods || []), ...(me?.admin && s.payTestAdmin && !(s.payMethods || []).includes("test") ? ["test"] : [])];
+  const methods = PAY_METHODS.filter(m => ids.includes(m.id));
+  const free = Q.total === 0;
   if (!Q.count) return <CartView />;
 
   // Сервер заново считает сумму, создаёт заказ и платёж в ЮKassa и возвращает адрес страницы оплаты.
@@ -140,7 +145,7 @@ export function CheckoutView() {
     setErrors(err);
     if (Object.keys(err).length) return;
     setBusy(true);
-    const { ok, data } = await api("/api/checkout", { method: "POST", body: JSON.stringify({ cart: s.cart, code: s.code, email, agree: true, channel: tg ? "tg" : "site", method: f.pm.value || "СБП" }) });
+    const { ok, data } = await api("/api/checkout", { method: "POST", body: JSON.stringify({ cart: s.cart, code: s.code, email, agree: true, channel: tg ? "tg" : "site", method: f.pm?.value || (free ? "" : methods[0]?.id) }) });
     if (!ok) { setBusy(false); setErrors({ form: data.error || "Не получилось создать заказ. Попробуйте ещё раз." }); return; }
     location.href = data.url;
   };
@@ -158,15 +163,19 @@ export function CheckoutView() {
             {errors.email && <span className="err">{errors.email}</span>}
           </label>
           <h2 className="payment-title">Способ оплаты</h2>
-          <div className="pay-opts" role="radiogroup" aria-label="Способ оплаты">
-            <label className="payment-option"><input type="radio" name="pm" value="СБП" defaultChecked /><span className="payment-icon">⚡</span><span><b>СБП</b><small>По QR-коду или из приложения банка</small></span><span className="radio-dot" /></label>
-            <label className="payment-option"><input type="radio" name="pm" value="Карта" /><span className="payment-icon">₽</span><span><b>Банковская карта</b><small>Мир, Visa, Mastercard российских банков</small></span><span className="radio-dot" /></label>
-          </div>
+          {free ? <p className="terms-note">Заказ бесплатный — оплата не нужна.</p>
+            : methods.length ? <div className="pay-opts" role="radiogroup" aria-label="Способ оплаты">
+              {methods.map((m, i) => (
+                <label key={m.id} className={"payment-option" + (m.test ? " test" : "")}><input type="radio" name="pm" value={m.id} defaultChecked={!i} />
+                  <span className="payment-icon">{m.icon}</span><span><b>{m.name}</b><small>{m.note}</small></span><span className="radio-dot" /></label>
+              ))}
+            </div>
+            : <div className="order-alert"><Info size={16} aria-hidden="true" /><span>Оплата пока не подключена — магазин скоро откроется. Модели можно добавить в избранное.</span></div>}
           <label className="check-row"><input type="checkbox" name="agree" /><span>Принимаю условия оферты и лицензии: файлы для личного использования и продажи отпечатков, передавать и публиковать файлы нельзя</span></label>
           {errors.agree && <span className="err">{errors.agree}</span>}
           {errors.form && <span className="err">{errors.form}</span>}
-          <button type="submit" className="button button-dark full site-only" disabled={busy}>{busy ? "Создаём заказ…" : <>Оплатить {rub(Q.total)} <ArrowRight size={17} /></>}</button>
-          <p className="terms-note">Оплата проходит на защищённой странице ЮKassa{tg ? ", после оплаты вы вернётесь сюда" : ""}.</p>
+          <button type="submit" className="button button-dark full site-only" disabled={busy || (!free && !methods.length)}>{busy ? "Создаём заказ…" : <>Оплатить {rub(Q.total)} <ArrowRight size={17} /></>}</button>
+          {!free && methods.some(m => !m.test) && <p className="terms-note">Оплата проходит на защищённой странице ЮKassa{tg ? ", после оплаты вы вернётесь сюда" : ""}.</p>}
         </form>
         <div>
           <Summary title="В заказе" withCode />

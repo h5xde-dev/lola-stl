@@ -11,6 +11,7 @@ import { slugify } from "@/lib/models";
 import { DEFAULT_HOME, mergeHome } from "@/lib/content";
 import { Markdown, plainText } from "@/lib/md";
 import { rub } from "@/lib/format";
+import { mergePayments, PAY_METHODS } from "@/lib/payments";
 
 const Eyebrow = ({ t = "Магазин · управление" }) => <span className="eyebrow">{t}</span>;
 const todayIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow" }).format(new Date());
@@ -458,8 +459,70 @@ export function AdminAnalytics() {
           <ShareTable title="Промокоды и скидки" rows={data.discounts} value={r => r.orders}
             cols={[["Скидка", r => r.name], ["Заказы", r => r.orders, 1], ["Скидка всего", r => rub(r.discount), 1], ["Выручка", r => rub(r.revenue), 1]]} />
         </div>
-        <p className="panel-sub">Выручка — сумма оплаченных заказов по дате оплаты, московское время. Не оплачено: {data.statuses.pending} ожидают оплаты, {data.statuses.canceled} отменены (неоплаченные заказы отменяются через час).</p>
+        <p className="panel-sub">Выручка — сумма оплаченных заказов по дате оплаты, московское время.{data.testOrders ? ` Тестовые заказы (${data.testOrders}) не учитываются.` : ""} Не оплачено: {data.statuses.pending} ожидают оплаты, {data.statuses.canceled} отменены (неоплаченные заказы отменяются через час).</p>
       </>}
+    </>
+  );
+}
+
+// ---------- оплата ----------
+export function AdminPayments() {
+  const { s, set, admin, toast, loadAdmin } = useStore();
+  const p = mergePayments(s.payments);
+  const ready = !!admin?.services?.yookassa;
+  const upd = patch => set(x => ({ payments: { ...mergePayments(x.payments), ...patch } }));
+  const [cleaning, setCleaning] = useState(false), [confirm, setConfirm] = useState(false);
+  const real = PAY_METHODS.filter(m => !m.test);
+  const onCount = real.filter(m => p[m.id]).length;
+  const testN = admin?.testOrders || 0;
+  const clean = async () => {
+    setCleaning(true);
+    const { ok, data } = await api("/api/admin/test-orders", { method: "DELETE" });
+    setCleaning(false); setConfirm(false);
+    if (ok) { toast(`Удалено тестовых заказов: ${data.deleted}`); loadAdmin(); } else toast(data.error || "Не получилось удалить");
+  };
+  return (
+    <>
+      <div className="adm-h"><div><Eyebrow /><h1>Оплата</h1></div></div>
+      <section className="panel"><h2>Способы оплаты на сайте</h2>
+        <div className={"svc-line " + (ready ? "on" : "")}>{ready ? "ЮKassa подключена — включённые способы видны покупателям." : "ЮKassa не подключена: нужны YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY в настройках сервера. До этого настоящие способы покупателям не показываются."}</div>
+        <div className="pay-admin">
+          {real.map(m => (
+            <label key={m.id} className={"pay-row" + (p[m.id] ? " on" : "")}>
+              <span className="payment-icon">{m.icon}</span>
+              <span><b>{m.name}</b><small>{m.note}</small></span>
+              <span className="switch"><input type="checkbox" checked={!!p[m.id]} onChange={e => upd({ [m.id]: e.target.checked })} aria-label={`${m.name}: показывать покупателям`} /><span className="track" /></span>
+            </label>
+          ))}
+        </div>
+        {!onCount && <p className="err">Все способы выключены — покупатели не смогут оплатить заказ.</p>}
+        <p className="panel-sub">SberPay и T-Pay включите, только если они подключены в личном кабинете ЮKassa. Выбранный способ сразу открывает нужную форму ЮKassa.</p>
+      </section>
+
+      <section className="panel"><h2>Тестовая оплата</h2>
+        <p className="panel-sub">Весь путь покупки без денег: заказ, страница «оплаты», письмо, ссылка на заказ, скачивание. Тестовые заказы помечаются, не попадают в аналитику, не дают скидку постоянного и не расходуют промокоды.</p>
+        <label className={"pay-row" + (p.test ? " on" : "")}>
+          <span className="payment-icon">✓</span>
+          <span><b>Тестовая оплата</b><small>{p.test ? (p.testFor === "all" ? "Включена для всех посетителей" : "Включена только для вас") : "Выключена"}</small></span>
+          <span className="switch"><input type="checkbox" checked={!!p.test} onChange={e => upd({ test: e.target.checked })} aria-label="Тестовая оплата" /><span className="track" /></span>
+        </label>
+        {p.test && (
+          <div className="radio-list" role="radiogroup" aria-label="Кому видна тестовая оплата">
+            <label className="check"><input type="radio" name="testFor" checked={p.testFor !== "all"} onChange={() => upd({ testFor: "admin" })} />
+              <span><b>Только мне</b> — видна в этом браузере, пока вы вошли в админку. Безопасно на работающем сайте.</span></label>
+            <label className="check"><input type="radio" name="testFor" checked={p.testFor === "all"} onChange={() => upd({ testFor: "all" })} />
+              <span><b>Всем посетителям</b> — для показа магазина. Любой сможет «купить» и скачать модели бесплатно.</span></label>
+          </div>
+        )}
+        {p.test && p.testFor === "all" && <p className="err">Внимание: пока включено «всем», файлы можно получить без оплаты. Выключите перед запуском продаж.</p>}
+        <div className="actions">
+          <span className="panel-sub">Тестовых заказов: {testN}</span>
+          {testN > 0 && !confirm && <button type="button" className="btn" onClick={() => setConfirm(true)}><Trash2 size={14} /> Удалить тестовые заказы</button>}
+        </div>
+        {confirm && <div className="confirm"><span>Удалить {testN} тестовых заказов и журнал их скачиваний? Вернуть их будет нельзя. Настоящие заказы не затрагиваются.</span>
+          <button type="button" className="btn danger" disabled={cleaning} onClick={clean}>{cleaning ? "Удаляем…" : "Удалить"}</button>
+          <button type="button" className="btn" onClick={() => setConfirm(false)}>Оставить</button></div>}
+      </section>
     </>
   );
 }
