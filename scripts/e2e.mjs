@@ -1,5 +1,6 @@
 // Проверка всего пути покупки через API на чистой базе: rm -rf .data, сервер с ADMIN_PASSWORD=lola, затем npm run e2e
 const B = process.env.BASE_URL || "http://localhost:3000";
+const AL = process.env.ADMIN_LOGIN || "lola";
 const jar = () => { const c = {}; return {
   async f(path, opts = {}) {
     const r = await fetch(B + path, { redirect: "manual", ...opts, headers: { "Content-Type": "application/json", Cookie: Object.entries(c).map(([k, v]) => `${k}=${v}`).join("; "), "x-forwarded-for": opts.ip || "10.0.0.1", ...(opts.headers || {}) } });
@@ -62,8 +63,8 @@ ok(r.status === 423, "четвёртая сеть за сутки — заказ
 
 // админка
 ok((await adm.f("/api/admin/state")).status === 401, "админка без входа закрыта");
-ok((await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ password: "wrong" }) })).status === 401, "неверный пароль");
-await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ password: "lola" }) });
+ok((await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: "wrong" }) })).status === 401, "неверный пароль не пускает");
+await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: process.env.ADMIN_PASSWORD || "lola" }) });
 let as = await j(await adm.f("/api/admin/state"));
 ok(as.orders[0].status === "review" && as.orders[0].log.length >= 7, `админка видит заказ на проверке и журнал (${as.orders[0].log.length})`);
 await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "open" }) });

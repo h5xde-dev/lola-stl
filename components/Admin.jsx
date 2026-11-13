@@ -16,20 +16,20 @@ const live = s => s.models.filter(m => !m.deleted);
 const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit"];
 
 function AdminLogin({ onDone }) {
-  const [pw, setPw] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const [login, setLogin] = useState(""), [pw, setPw] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
   const submit = async e => {
     e.preventDefault(); setBusy(true); setErr("");
-    const { ok, data } = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: pw }) });
+    const { ok, data } = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ login, password: pw }) });
     setBusy(false);
     if (ok) onDone(); else setErr(data.error || "Не получилось войти");
   };
   return (
     <div className="inner-page"><form className="checkout-form" style={{ maxWidth: 380, margin: "60px auto" }} onSubmit={submit}>
       <Brand sub="АДМИН-ПАНЕЛЬ" />
-      <label className="form-label">Пароль<input type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} autoFocus /></label>
+      <label className="form-label">Логин<input name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={login} onChange={e => setLogin(e.target.value)} autoFocus /></label>
+      <label className="form-label">Пароль<input name="password" type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} /></label>
       {err && <span className="err">{err}</span>}
-      <button type="submit" className="button button-dark full" disabled={busy || !pw}>{busy ? "Входим…" : "Войти"}</button>
-      <p className="note">Пароль задаётся переменной ADMIN_PASSWORD в настройках сервера.</p>
+      <button type="submit" className="button button-dark full" disabled={busy || !login || !pw}>{busy ? "Входим…" : "Войти"}</button>
     </form></div>
   );
 }

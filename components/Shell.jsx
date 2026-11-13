@@ -117,7 +117,7 @@ export default function Shell({ children, demo = true }) {
             <div className="wrap footer-in">
               <Brand sub="" />
               <p>Файлы, которые превращаются в вещи.</p>
-              <div className="footer-links"><Link href="/">Каталог</Link><Link href="/purchases">Мои покупки</Link><Link href="/admin">Админ-панель</Link></div>
+              <div className="footer-links"><Link href="/">Каталог</Link><Link href="/purchases">Мои покупки</Link></div>
               <small>© 2026 lola.stl · ИП [ФИО] · ИНН [—] · Оферта и лицензия · Политика обработки данных</small>
             </div>
           </footer>
