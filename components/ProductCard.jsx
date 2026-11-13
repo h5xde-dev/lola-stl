@@ -64,7 +64,7 @@ export default function ProductCard({ m }) {
         <div className="product-foot">
           <PriceLine m={m} />
           {isOwned
-            ? <Link href="/purchases" className="add-button owned" aria-label={`«${m.name}» уже куплена — скачать`} title="Скачать в «Моих покупках»"><Download size={17} /></Link>
+            ? <Link href="/account" className="add-button owned" aria-label={`«${m.name}» уже куплена — скачать`} title="Скачать в личном кабинете"><Download size={17} /></Link>
             : <button type="button" className={"add-button" + (inCart ? " in" : gift ? " gift" : "")} aria-pressed={inCart} disabled={inSet}
                 aria-label={inSet ? `«${m.name}» входит в набор в корзине` : inCart ? `Убрать «${m.name}» из корзины` : gift ? `Взять «${m.name}» в подарок` : `Добавить «${m.name}» в корзину`}
                 title={inSet ? "Входит в набор" : inCart ? "Убрать из корзины" : gift ? "Взять в подарок" : "В корзину"}

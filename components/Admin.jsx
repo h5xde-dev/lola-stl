@@ -2,18 +2,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChevronDown, Cloud, CloudOff, FolderTree, Layers, LayoutGrid, LogOut, Mail, Plus, ReceiptText, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChartColumn, ChevronDown, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { api, useStore } from "./Store";
 import { uploadModelFile } from "./uploader";
+import { uploadImage } from "./media";
+import { SeoFields } from "./AdminContent";
 import { categoryHref, kindName, slugify } from "@/lib/models";
 import { listPrice, paidPrice, plantQuote, quote, today } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
 const live = s => s.models.filter(m => !m.deleted);
 
-const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit"];
+const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "articles", "home", "seo", "company"];
 
 function AdminLogin({ onDone }) {
   const [login, setLogin] = useState(""), [pw, setPw] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
@@ -62,7 +64,7 @@ export function AdminShell({ children }) {
   if (auth === "login") return <AdminLogin onDone={() => loadAdmin().then(st => setAuth(st === 200 ? "ok" : "login"))} />;
   if (auth === "error") return <div className="inner-page"><div className="empty-state">Сервер не ответил. Обновите страницу через минуту.</div></div>;
 
-  const tab = ["prices", "orders", "categories", "promo", "bundles", "outbox"].find(t => path.startsWith("/admin/" + t)) || "models";
+  const tab = ["prices", "orders", "categories", "promo", "bundles", "outbox", "analytics", "home", "articles", "seo"].find(t => path.startsWith("/admin/" + t)) || "models";
   const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
     <div className="admin-page">
@@ -75,6 +77,10 @@ export function AdminShell({ children }) {
           {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
           {link("/admin/promo", BadgePercent, "Промокоды", (s.promoCodes || []).filter(c => !c.deleted && c.active).length, "promo")}
           {link("/admin/bundles", Layers, "Наборы", (s.bundles || []).filter(b => !b.deleted && b.active).length, "bundles")}
+          {link("/admin/analytics", ChartColumn, "Аналитика", "", "analytics")}
+          {link("/admin/home", House, "Главная", "", "home")}
+          {link("/admin/articles", Newspaper, "Статьи", (s.articles || []).filter(a => !a.deleted && a.published).length, "articles")}
+          {link("/admin/seo", Search, "SEO и реквизиты", "", "seo")}
           {link("/admin/outbox", Mail, "Письма", "", "outbox")}
         </nav>
         <div className={"save-state " + save} role="status">
@@ -127,7 +133,7 @@ export function AdminModels() {
           )) : <tr><td colSpan={7} className="meta" style={{ padding: 20 }}>Ничего не нашлось.</td></tr>}
         </tbody>
       </table></div>
-      <p className="note">Скрытая модель пропадает из каталога, но у тех, кто её купил, файл остаётся в «Моих покупках».</p>
+      <p className="note">Скрытая модель пропадает из каталога, но у тех, кто её купил, файл остаётся в личном кабинете.</p>
     </>
   );
 }
@@ -165,27 +171,22 @@ export function AdminEditor({ id }) {
       if (!e.aborted) toast(e.message === "network" ? "Связь оборвалась. Выберите тот же файл ещё раз — загрузка продолжится." : e.message);
     }).finally(() => { uploadJob.current = null; });
   };
-  const addPhotos = files => {
+  // Фото загружаются на сервер (до 1600 px) и показываются на сайте в сжатом виде через next/image
+  const [phBusy, setPhBusy] = useState(0);
+  const addPhotos = async files => {
     const list = Array.from(files || []).slice(0, 8);
     if (!list.length) return;
-    let left = list.length, bad = 0;
-    const out = [];
-    const done = () => { if (--left === 0) { setD(p => ({ ...p, photos: [...(p.photos || []), ...out] })); toast(bad ? "Часть файлов не открылась как изображение" : "Фото добавлены"); } };
-    list.forEach(f => {
-      const url = URL.createObjectURL(f), img = new Image();
-      img.onload = () => {
-        const k = Math.min(1, 640 / Math.max(img.width, img.height)), c = document.createElement("canvas");
-        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-        try { out.push(c.toDataURL("image/jpeg", .8)); } catch { bad++; }
-        URL.revokeObjectURL(url); done();
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); bad++; done(); };
-      img.src = url;
-    });
+    setPhBusy(list.length);
+    let bad = 0;
+    for (const f of list) {
+      try { const src = await uploadImage(f, 1600); setD(p => ({ ...p, photos: [...(p.photos || []), src] })); }
+      catch { bad++; }
+      setPhBusy(n => n - 1);
+    }
+    toast(bad ? "Часть файлов не загрузилась: подойдут JPG, PNG или WebP" : "Фото загружены. Нажмите «Сохранить».");
   };
   const save = () => {
-    if (upload) { toast("Дождитесь окончания загрузки файла"); return; }
+    if (upload || phBusy) { toast("Дождитесь окончания загрузки"); return; }
     const name = (d.name || "").trim();
     if (!name) { setErr("Укажите название: его видят покупатели."); document.getElementById("fName")?.focus(); return; }
     let slug = d.slug || slugify(name);
@@ -216,7 +217,7 @@ export function AdminEditor({ id }) {
             {hasPh ? <div className="photos">{d.photos.map((p, i) => (
               <span key={i}><img src={p} alt={`Фото ${i + 1}`} className={i ? "" : "cover"} />
                 <button type="button" className="ph-x" aria-label={`Удалить фото ${i + 1}`} onClick={() => upd({ photos: d.photos.filter((_, j) => j !== i) })}>×</button></span>))}</div> : null}
-            <div className="drop"><label className="mini-btn" htmlFor="photoIn">Добавить фото</label>
+            <div className="drop"><label className="mini-btn" htmlFor="photoIn">{phBusy ? `Загружаем… (${phBusy})` : "Добавить фото"}</label>
               <input type="file" id="photoIn" accept="image/*" multiple hidden onChange={e => { addPhotos(e.target.files); e.target.value = ""; }} />
               <span>Первое фото станет обложкой в каталоге и картинкой для соцсетей. Снимки сжимаются автоматически.</span></div></div>
           {!hasPh && (
@@ -263,6 +264,8 @@ export function AdminEditor({ id }) {
                 <small>{admin?.services?.storage === "s3" ? "STL или ZIP до 5 ГБ: загружается частями напрямую в закрытое хранилище." : "Хранилище S3 не подключено: файл до 5 ГБ сохраняется на диск сервера сайта."}</small>
               </>}
             </div></div>
+          <SeoFields title={d.seoTitle} desc={d.seoDesc} onChange={upd} idp="m"
+            hintTitle={`${d.name || "Название"} — STL-модель … для 3D-печати`} hintDesc="Описание модели + размер, настройки печати и размер файла" />
           <div className="actions">
             <label className="check"><input type="checkbox" checked={!!d.isNew} onChange={e => upd({ isNew: e.target.checked })} /><span>Отметить как новинку</span></label>
             <label className="check"><input type="checkbox" checked={!!d.vase} onChange={e => upd({ vase: e.target.checked })} /><span>Печать в режиме вазы</span></label>
@@ -511,6 +514,8 @@ export function AdminCategories() {
             <div className="f"><label htmlFor="cSlug">Адрес страницы</label><input type="text" id="cSlug" value={edit.slug} placeholder={slugify(edit.name || "category")} onChange={e => upd({ slug: slugify(e.target.value) })} /><small>/category/{edit.slug || slugify(edit.name || "category")}</small></div>
           </div>
           <div className="f"><label htmlFor="cDesc">Описание для страницы категории</label><textarea id="cDesc" value={edit.desc} placeholder="Пара предложений: что за модели, для чего, как печатаются. Попадает в поиск." onChange={e => upd({ desc: e.target.value })} /></div>
+          <SeoFields title={edit.seoTitle} desc={edit.seoDesc} onChange={upd} idp="c"
+            hintTitle={`${edit.name || "Категория"} — STL-модели для 3D-печати`} hintDesc="Описание категории" />
           <div className="actions">
             <label className="check"><input type="checkbox" checked={!!edit.inMenu} onChange={e => upd({ inMenu: e.target.checked })} /><span>Показывать в меню сайта</span></label>
           </div>

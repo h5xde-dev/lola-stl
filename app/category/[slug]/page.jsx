@@ -16,13 +16,14 @@ export async function generateMetadata({ params }) {
   const { slug } = await params;
   const c = await getCategory(slug);
   if (!c) return { title: "Категория", robots: { index: false, follow: false } };
-  const title = `${c.name} — STL-модели для 3D-печати`;
+  const title = c.seoTitle || `${c.name} — STL-модели для 3D-печати`;
+  const description = c.seoDesc || c.desc;
   return {
     title,
-    description: c.desc,
+    description,
     alternates: { canonical: `/category/${c.slug}` },
-    openGraph: { type: "website", title, description: c.desc, url: `/category/${c.slug}` },
-    twitter: { card: "summary_large_image", title, description: c.desc },
+    openGraph: { type: "website", title, description, url: `/category/${c.slug}` },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

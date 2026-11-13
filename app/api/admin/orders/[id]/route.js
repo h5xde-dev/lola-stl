@@ -18,7 +18,7 @@ export const POST = wrap(async (req, { params }) => {
   else if (action === "resend") {
     if (o.email) await sendLoginLink(o.email);
     const c = await R.customerById(o.customer_id);
-    if (c?.tg_id) await sendTelegram(c.tg_id, `Ваши покупки в lola.stl: ${SITE_URL}/purchases`);
+    if (c?.tg_id) await sendTelegram(c.tg_id, `Ваши покупки в lola.stl: ${SITE_URL}/account`);
   } else return bad("Неизвестное действие");
   return json({ ok: true });
 });

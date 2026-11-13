@@ -19,9 +19,9 @@ export async function generateMetadata({ params }) {
   const m = await getModel(slug);
   if (!m) return { title: "Модель", robots: { index: false, follow: false } };
   const cats = await getCategories();
-  const title = `${m.name} — STL-модель ${kindGen(m, cats)} для 3D-печати`;
+  const title = m.seoTitle || `${m.name} — STL-модель ${kindGen(m, cats)} для 3D-печати`;
   const extra = [m.dims && `Размер ${m.dims}`, m.print].filter(Boolean).join(", ");
-  const description = `${m.desc} ${extra ? extra + ". " : ""}Файл STL ${m.mb} МБ сразу после оплаты, продажа отпечатков разрешена.`;
+  const description = m.seoDesc || `${m.desc} ${extra ? extra + ". " : ""}Файл STL ${m.mb} МБ сразу после оплаты, продажа отпечатков разрешена.`;
   const prices = await getPrices();
   const price = m.cat === "box" ? boxPrice(prices, 1, false) : paidPrice(prices, 1);
   return {

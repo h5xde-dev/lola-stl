@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, BadgePercent, Download, Gift, Info, Layers, Lock, ShoppingBag, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, BadgePercent, Download, Gift, Info, Layers, Link as LinkIcon, Lock, ReceiptText, ShoppingBag, Sparkles, X } from "lucide-react";
 import ModelArt from "./ModelArt";
 import ProductCard from "./ProductCard";
 import { api, useServerQuote, useStore } from "./Store";
@@ -152,7 +152,7 @@ export function CheckoutView() {
       <div className="checkout-layout">
         <form className="checkout-form" id="coForm" noValidate onSubmit={submit}>
           <h2>Контактные данные</h2>
-          <div className="id-note"><Info size={16} aria-hidden="true" />{tg ? "Покупки привязаны к вашему Telegram-аккаунту. Email нужен только для чека." : "Без регистрации: покупки привязываются к email, туда же придут чек и ссылка на «Мои покупки»."}</div>
+          <div className="id-note"><Info size={16} aria-hidden="true" />{tg ? "Покупки привязаны к вашему Telegram-аккаунту. Email нужен только для чека." : "Без регистрации: покупки привязываются к email, туда же придут чек и ссылка на заказ."}</div>
           <label className="form-label">Email для чека{tg ? "" : " и ссылки"}
             <input type="email" name="email" autoComplete="email" placeholder="name@mail.ru" defaultValue={s.email} aria-invalid={!!errors.email} />
             {errors.email && <span className="err">{errors.email}</span>}
@@ -170,7 +170,7 @@ export function CheckoutView() {
         </form>
         <div>
           <Summary title="В заказе" withCode />
-          <div className="digital-note"><Download size={17} aria-hidden="true" /><span>Файлы будут доступны сразу после оплаты в «Моих покупках»: каждую модель можно скачать до {s.downloadLimit || 5} раз по личной ссылке.</span></div>
+          <div className="digital-note"><Download size={17} aria-hidden="true" /><span>Файлы будут доступны сразу после оплаты в личном кабинете и по личной ссылке на заказ: каждую модель можно скачать до {s.downloadLimit || 5} раз по личной ссылке.</span></div>
         </div>
       </div>
     </div>
@@ -189,7 +189,7 @@ export function ReturnView() {
       const { ok, data } = await api(`/api/orders/${encodeURIComponent(code)}`);
       if (!alive) return;
       if (ok && ["paid", "review", "revoked"].includes(data.status)) {
-        set({ cart: [], code: "" }); setFlash(code); await loadMe(); router.replace("/purchases"); return;
+        set({ cart: [], code: "" }); setFlash(code); await loadMe(); router.replace("/account"); return;
       }
       if (ok && data.status === "canceled") { setSt("canceled"); return; }
       if (!ok) { setSt("missing"); return; }
@@ -205,10 +205,10 @@ export function ReturnView() {
         <h1>{st === "canceled" ? "Оплата отменена" : st === "missing" ? "Заказ не найден" : "Проверяем оплату…"}</h1>
         <p>{st === "canceled" ? "Деньги не списаны. Корзина сохранилась — можно попробовать ещё раз."
           : st === "slow" ? "Подтверждение задерживается. Ссылка на файлы придёт на email сразу после оплаты — эту страницу можно закрыть."
-          : st === "missing" ? "Откройте «Мои покупки» по ссылке из письма."
+          : st === "missing" ? "Откройте заказ по ссылке из письма."
           : "Обычно это занимает несколько секунд. Не закрывайте страницу."}</p></div>
       {st === "wait" && <div className="skeleton" aria-busy="true"><span className="spinner" /></div>}
-      {st !== "wait" && <div className="actions"><Link href="/cart" className="button button-dark">В корзину</Link><Link href="/purchases" className="button button-outline">Мои покупки</Link></div>}
+      {st !== "wait" && <div className="actions"><Link href="/cart" className="button button-dark">В корзину</Link><Link href="/account" className="button button-outline">Личный кабинет</Link></div>}
     </div>
   );
 }
@@ -228,10 +228,10 @@ function LinkRequest() {
     setSent(true);
   };
   return sent
-    ? <div className="empty-state" style={{ marginTop: 26 }}>Если на {email} были покупки, ссылка уже в почте. Она одноразовая и действует 3 дня.</div>
+    ? <div className="empty-state" style={{ marginTop: 26 }}>Если на {email} были покупки, ссылка для входа уже в почте. Она действует 3 дня.</div>
     : <form className="link-request" onSubmit={send}>
-        <b>Открыть покупки на этом устройстве</b>
-        <p>Пришлём одноразовую ссылку на email, который вы указывали при оплате.</p>
+        <b>Войти в личный кабинет</b>
+        <p>Пришлём ссылку для входа на email, который вы указывали при оплате. В Telegram кабинет открывается сам.</p>
         <div className="promo-field" style={{ margin: 0 }}>
           <label htmlFor="lrEmail" className="sr-only">Email</label>
           <input id="lrEmail" type="email" placeholder="name@mail.ru" value={email} onChange={e => setEmail(e.target.value)} style={{ textTransform: "none", fontFamily: "var(--f-body)", letterSpacing: 0 }} />
@@ -240,44 +240,112 @@ function LinkRequest() {
       </form>;
 }
 
-export function PurchasesView() {
-  const { s, byId, toast, flash, me, loadMe } = useStore();
-  const [tab, setTab] = useState("orders");
+// Скачивание: сервер проверяет покупателя, лимит и места скачивания, пишет журнал и выдаёт ссылку на 5 минут.
+function useDownload(after) {
+  const { s, toast } = useStore();
   const [busy, setBusy] = useState("");
-  const params = useSearchParams();
-  const tg = s.mode === "tg";
   const limit = s.downloadLimit || 5;
-  const orders = (s.orders || []).filter(o => o.own).sort((a, b) => b.date - a.date);
-  const favs = (s.favs || []).map(id => byId[id]).filter(m => m && !m.deleted && !m.hidden);
-  useEffect(() => {
-    if (params.get("link") === "expired") toast("Ссылка уже использована или устарела. Запросите новую ниже.");
-    if (params.get("welcome")) toast("Готово: покупки открыты на этом устройстве.");
-  }, [params, toast]);
-
-  // Сервер проверяет покупателя, лимит и места скачивания, пишет журнал и выдаёт ссылку на 5 минут.
   const download = async (o, id) => {
     setBusy(o.id + id);
     const { ok, data } = await api("/api/download", { method: "POST", body: JSON.stringify({ order: o.id, model: id }) });
     setBusy("");
-    if (!ok) { toast(data.error || "Не получилось скачать. Попробуйте ещё раз."); loadMe(); return; }
+    if (!ok) { toast(data.error || "Не получилось скачать. Попробуйте ещё раз."); after?.(); return; }
     location.href = data.url;
     toast(`Скачивание началось. Осталось ${data.left} из ${limit}.`);
-    setTimeout(loadMe, 800);
+    setTimeout(() => after?.(), 800);
   };
+  return { busy, download, limit };
+}
+
+// Блок заказа: модели со скачиванием, постоянная ссылка на заказ и чек
+function OrderBlock({ o, dl, showLink = true }) {
+  const { byId, toast, flash } = useStore();
+  const { busy, download, limit } = dl;
+  const blocked = o.status && o.status !== "paid";
+  const ids = o.items.filter(id => byId[id]);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(location.origin + o.link); toast("Ссылка на заказ скопирована"); }
+    catch { toast("Не получилось скопировать — откройте заказ и скопируйте адрес из строки браузера"); }
+  };
+  return (
+    <section className={"order-block" + (flash === o.id ? " flash" : "") + (blocked ? " blocked" : "")} aria-label={`Заказ ${o.id}`}>
+      <div className="order-head">
+        <div><b>Заказ {o.id}</b><span>{fmtDate(o.date)} · {models(o.items.length)} · {rub(o.total)}{o.method ? " · " + o.method : ""}{o.discount ? ` · ${o.discount.label}` : ""}</span></div>
+        {o.link && <div className="order-tools">
+          <Link href={o.link + "/receipt"} className="mini-btn"><ReceiptText size={14} aria-hidden="true" /> Чек</Link>
+          {showLink && <button type="button" className="mini-btn" onClick={copy}><LinkIcon size={14} aria-hidden="true" /> Ссылка на заказ</button>}
+        </div>}
+      </div>
+      {blocked && <div className="order-alert"><Lock size={16} aria-hidden="true" /><span>{STATUS[o.status] || STATUS.revoked}</span></div>}
+      {ids.map(id => {
+        const m = byId[id], used = (o.downloads || {})[id] || 0, left = Math.max(0, limit - used);
+        return (
+          <div className="library-item" key={id}>
+            <Link href={modelHref(m)} className="library-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"o-" + o.id + id} sizes="64px" /></Link>
+            <div><b>{m.name}</b><span>{m.slug}_{o.id} · {zipMb(m)} МБ · <span className={left ? "" : "err"}>осталось {left} из {limit}</span></span></div>
+            <button type="button" className="download-button" disabled={blocked || !left || busy === o.id + id} aria-label={`Скачать «${m.name}»`} onClick={() => download(o, id)}>
+              <Download size={16} /><span>{busy === o.id + id ? "Готовим…" : left ? "Скачать" : "Лимит исчерпан"}</span></button>
+          </div>
+        );
+      })}
+      <div className="order-foot"><span>Ссылка на заказ постоянная и личная — не пересылайте её. Передавать файлы третьим лицам запрещено лицензией.</span>{o.email && <span>Чек отправлен на {o.email}</span>}</div>
+    </section>
+  );
+}
+
+// Заказ по постоянной личной ссылке из письма или от бота
+export function OrderLinkView({ token }) {
+  const { loadMe } = useStore();
+  const [st, setSt] = useState({ state: "load" });
+  const load = useCallback(async () => {
+    const { ok, data } = await api(`/api/o/${encodeURIComponent(token)}`);
+    if (!ok) setSt({ state: "missing", error: data.error });
+    else if (data.pending) setSt({ state: "pending", url: data.url });
+    else { setSt({ state: "ok", order: data.order }); loadMe(); }
+  }, [token, loadMe]);
+  useEffect(() => { load(); }, [load]);
+  const dl = useDownload(load);
+  return (
+    <div className="inner-page">
+      <div className="page-title"><span className="eyebrow">Ваш заказ</span><h1>{st.order ? `Заказ ${st.order.id}` : "Заказ"}</h1>
+        <p>Эта страница всегда открывается по ссылке из письма. Все заказы — в <Link href="/account">личном кабинете</Link>.</p></div>
+      {st.state === "load" && <div className="skeleton" aria-busy="true">Открываем заказ…</div>}
+      {st.state === "missing" && <div className="empty-state">{st.error || "Заказ не найден."} <Link href="/account">Личный кабинет</Link></div>}
+      {st.state === "pending" && <div className="empty-state">Заказ ещё не оплачен. {st.url && <a href={st.url}>Перейти к оплате</a>}</div>}
+      {st.order && <OrderBlock o={st.order} dl={dl} showLink={false} />}
+    </div>
+  );
+}
+
+export function AccountView() {
+  const { s, byId, toast, me, loadMe } = useStore();
+  const [tab, setTab] = useState("orders");
+  const params = useSearchParams();
+  const tg = s.mode === "tg";
+  const orders = (s.orders || []).filter(o => o.own).sort((a, b) => b.date - a.date);
+  const favs = (s.favs || []).map(id => byId[id]).filter(m => m && !m.deleted && !m.hidden);
+  const dl = useDownload(loadMe);
+  useEffect(() => {
+    if (params.get("link") === "expired") toast("Ссылка для входа устарела. Запросите новую ниже.");
+    if (params.get("welcome")) toast("Готово: вы вошли в личный кабинет на этом устройстве.");
+  }, [params, toast]);
   const who = me?.customer;
+  const spent = orders.filter(o => o.status === "paid").reduce((a, o) => a + o.total, 0);
+  const count = orders.reduce((a, o) => a + o.items.length, 0);
 
   return (
     <div className="inner-page">
-      <div className="page-title"><span className="eyebrow">Ваша коллекция</span><h1>Мои покупки</h1><p>Библиотека моделей, которые уже готовы к печати.</p></div>
+      <div className="page-title"><span className="eyebrow">Ваша коллекция</span><h1>Личный кабинет</h1><p>Купленные модели, ссылки на заказы и чеки.</p></div>
       <div className="account-banner">
-        <div className="account-avatar" aria-hidden="true">L</div>
-        <div><b>{who ? (who.email || (who.tg ? "Telegram: " + who.tg : "Ваша библиотека")) : tg ? "Мини-приложение" : "Ваша библиотека"}</b>
-          <p>{who ? "Покупки открыты на этом устройстве. Ссылки на файлы личные и действуют 5 минут." : "Покупки открываются по одноразовой ссылке из письма или через Telegram."}</p></div>
+        <div className="account-avatar" aria-hidden="true">{(who?.email || who?.tg || "L").replace(/^@/, "")[0].toUpperCase()}</div>
+        <div><b>{who ? (who.email || (who.tg ? "Telegram: " + who.tg : "Ваш кабинет")) : tg ? "Мини-приложение" : "Гость"}</b>
+          <p>{who ? `Заказов: ${orders.length} · моделей: ${count}${spent ? " · на " + rub(spent) : ""}`
+            : orders.length ? "Заказы, открытые на этом устройстве по ссылкам из писем. Войдите, чтобы видеть все." : "Войдите по ссылке из письма или через Telegram."}</p></div>
         {who ? <button type="button" className="text-link" style={{ border: 0, background: "none", cursor: "pointer" }} onClick={async () => { await api("/api/auth/logout", { method: "POST" }); location.reload(); }}>Выйти</button>
           : <Link href="/#catalog" className="text-link">В каталог <ArrowRight size={16} /></Link>}
       </div>
       <div className="account-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "orders"} onClick={() => setTab("orders")}>Покупки<small>{orders.length}</small></button>
+        <button type="button" role="tab" aria-selected={tab === "orders"} onClick={() => setTab("orders")}>Заказы и чеки<small>{orders.length}</small></button>
         <button type="button" role="tab" aria-selected={tab === "favs"} onClick={() => setTab("favs")}>Избранное<small>{favs.length}</small></button>
       </div>
 
@@ -285,31 +353,8 @@ export function PurchasesView() {
         favs.length ? <div className="product-grid fav-grid">{favs.map(m => <ProductCard key={m.id} m={m} />)}</div>
           : <div className="empty-state" style={{ marginTop: 26 }}>Отмечайте понравившиеся модели сердцем — они появятся здесь.</div>
       ) : <>
-        {orders.map(o => {
-          const blocked = o.status && o.status !== "paid";
-          const ids = o.items.filter(id => byId[id]);
-          return (
-            <section key={o.id} className={"order-block" + (flash === o.id ? " flash" : "") + (blocked ? " blocked" : "")} aria-label={`Заказ ${o.id}`}>
-              <div className="order-head">
-                <div><b>Заказ {o.id}</b><span>{fmtDate(o.date)} · {models(o.items.length)} · {rub(o.total)}{o.method ? " · " + o.method : ""}{o.discount ? ` · ${o.discount.label}` : ""}</span></div>
-              </div>
-              {blocked && <div className="order-alert"><Lock size={16} aria-hidden="true" /><span>{STATUS[o.status] || STATUS.revoked}</span></div>}
-              {ids.map(id => {
-                const m = byId[id], used = (o.downloads || {})[id] || 0, left = Math.max(0, limit - used);
-                return (
-                  <div className="library-item" key={id}>
-                    <Link href={modelHref(m)} className="library-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"o-" + o.id + id} sizes="64px" /></Link>
-                    <div><b>{m.name}</b><span>{m.slug}_{o.id} · {zipMb(m)} МБ · <span className={left ? "" : "err"}>осталось {left} из {limit}</span></span></div>
-                    <button type="button" className="download-button" disabled={blocked || !left || busy === o.id + id} aria-label={`Скачать «${m.name}»`} onClick={() => download(o, id)}>
-                      <Download size={16} /><span>{busy === o.id + id ? "Готовим…" : left ? "Скачать" : "Лимит исчерпан"}</span></button>
-                  </div>
-                );
-              })}
-              <div className="order-foot"><span>Ссылка на файл живёт 5 минут и работает только у вас. Передавать файлы третьим лицам запрещено лицензией.</span>{o.email && <span>Чек отправлен на {o.email}</span>}</div>
-            </section>
-          );
-        })}
-        {!orders.length && me && <div className="empty-state" style={{ marginTop: 26 }}>Покупок на этом устройстве пока нет. <Link href="/#catalog">Перейти в каталог</Link></div>}
+        {orders.map(o => <OrderBlock key={o.id} o={o} dl={dl} />)}
+        {!orders.length && me && <div className="empty-state" style={{ marginTop: 26 }}>Заказов пока нет. <Link href="/#catalog">Перейти в каталог</Link></div>}
         {me && !who && <LinkRequest />}
       </>}
     </div>

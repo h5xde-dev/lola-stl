@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req, { params }) {
   if (s3Configured()) return new Response("Not found", { status: 404 });
   const t = verify(decodeURIComponent((await params).token));
-  if (!t?.key) return new Response("Ссылка устарела. Вернитесь в «Мои покупки» и нажмите «Скачать» ещё раз.", { status: 410, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  if (!t?.key) return new Response("Ссылка устарела. Вернитесь в личный кабинет или откройте ссылку на заказ и нажмите «Скачать» ещё раз.", { status: 410, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   const path = await localFile(t.key);
   const { size } = await stat(path);
   return new Response(Readable.toWeb(createReadStream(path)), {

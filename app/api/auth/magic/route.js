@@ -8,7 +8,7 @@ export async function GET(req) {
   const url = new URL(req.url);
   const t = verify(url.searchParams.get("t"));
   const used = t?.n ? await useLoginToken(t.n) : null;
-  if (!used) return NextResponse.redirect(new URL("/purchases?link=expired", url));
+  if (!used) return NextResponse.redirect(new URL("/account?link=expired", url));
   await setCustomer(used.customer_id);
-  return NextResponse.redirect(new URL("/purchases?welcome=1", url));
+  return NextResponse.redirect(new URL("/account?welcome=1", url));
 }

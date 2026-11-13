@@ -1,5 +1,6 @@
-import { Suspense } from "react";
-import { WhenReady } from "@/components/Store";
-import { PurchasesView } from "@/components/CartViews";
-export const metadata = { title: "Мои покупки", robots: { index: false, follow: false } };
-export default function Page() { return <WhenReady><Suspense><PurchasesView /></Suspense></WhenReady>; }
+import { permanentRedirect } from "next/navigation";
+// Старый адрес «Мои покупки» из прежних писем и кнопок бота ведёт в личный кабинет.
+export default async function Page({ searchParams }) {
+  const q = new URLSearchParams(await searchParams).toString();
+  permanentRedirect("/account" + (q ? "?" + q : ""));
+}

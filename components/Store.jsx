@@ -10,7 +10,7 @@ import { rub } from "@/lib/format";
 
 const KEY = "lola-cart-v1";
 const LOCAL = ["cart", "mode", "filter", "q", "email", "favs", "code"];
-const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "bundles", "promoCodes"];
+const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "bundles", "promoCodes", "articles", "home", "seo", "company"];
 
 function seed(initial) {
   return {
@@ -95,7 +95,7 @@ export function StoreProvider({ initial, children }) {
     }
     const m = byId[id];
     if (!m) return;
-    if (owned.has(id)) { toast(`«${m.name}» уже куплена — она в «Моих покупках»`); return; }
+    if (owned.has(id)) { toast(`«${m.name}» уже куплена — она в личном кабинете`); return; }
     const inSet = (s.bundles || []).find(b => s.cart.includes("set:" + b.id) && b.items.includes(id));
     if (inSet) { toast(`«${m.name}» уже входит в набор «${inSet.name}»`); return; }
     const next = quote({ ...s, cart: [...s.cart, id] }, byId, { cats });

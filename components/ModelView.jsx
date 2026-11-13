@@ -96,14 +96,14 @@ export default function ModelView({ initial }) {
           </div>
 
           <div className="detail-actions">
-            {isOwned ? <Link href="/purchases" className="button button-dark full">Скачать в «Моих покупках» <ArrowRight size={17} /></Link>
+            {isOwned ? <Link href="/account" className="button button-dark full">Скачать в личном кабинете <ArrowRight size={17} /></Link>
             : inSet ? <Link href="/cart" className="button button-outline full">Входит в набор в корзине</Link>
             : <button type="button" className={"button full " + (inCart ? "button-outline" : gift ? "button-gift" : "button-dark")} onClick={() => toggleCart(m.id)}>
               {inCart ? "Убрать из корзины" : gift ? <><Gift size={17} /> Взять в подарок</> : <>Добавить в корзину <ArrowRight size={17} /></>}
             </button>}
             {inCart && !inSet && !isOwned && <Link href="/cart" className="button button-dark full">Перейти в корзину <ArrowRight size={17} /></Link>}
           </div>
-          <p className="secure-note">Файлы останутся в «Моих покупках», их можно скачать повторно.</p>
+          <p className="secure-note">Файлы останутся в личном кабинете, их можно скачать повторно.</p>
         </div>
       </div>
 

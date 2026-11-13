@@ -1,4 +1,5 @@
 "use client";
+import { companyLine } from "@/lib/content";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -65,9 +66,10 @@ function Header() {
             <Link key={c.id} href={categoryHref(c)} aria-current={path === `/category/${c.slug}` ? "page" : undefined} onClick={() => setOpen(false)}>{c.name}</Link>
           ))}
           <Link href="/#catalog" aria-current={home && s.filter === "new" ? "page" : undefined} onClick={() => { set({ filter: "new", q: "" }); setOpen(false); }}>Новинки</Link>
+          {s.hasArticles && <Link href="/blog" aria-current={path.startsWith("/blog") ? "page" : undefined} onClick={() => setOpen(false)}>Статьи</Link>}
         </nav>
         <div className="header-actions">
-          <Link href="/purchases" className="header-link" aria-current={path === "/purchases" ? "page" : undefined}>Мои покупки</Link>
+          <Link href="/account" className="header-link" aria-current={path === "/account" ? "page" : undefined}>Личный кабинет</Link>
           <Link href="/cart" className="bag-link" aria-label={`Корзина: ${models(Q.count)}${Q.count ? ", " + rub(Q.total) : ""}`}>
             <ShoppingBag size={19} aria-hidden="true" /><span>Корзина</span><b className={Q.count ? "on" : ""}>{Q.count}</b>
             {Q.count > 0 && <span className="sum">{rub(Q.total)}</span>}
@@ -110,15 +112,15 @@ export default function Shell({ children, demo = true }) {
               ? <button type="button" className="tg-x" onClick={() => toast("В Telegram эта кнопка закрывает мини-приложение.")}>Закрыть</button>
               : <button type="button" className="tg-x tg-back" onClick={() => (history.length > 1 ? router.back() : router.push("/"))}><ChevronLeft size={18} aria-hidden="true" />Назад</button>}
             <div className="tg-title"><b>lola.stl</b><small>мини-приложение</small></div>
-            <Link href="/purchases" className="tg-x">Покупки</Link>
+            <Link href="/account" className="tg-x">Покупки</Link>
           </div>
           <main>{children}</main>
           <footer className="site-footer site-only">
             <div className="wrap footer-in">
               <Brand sub="" />
               <p>Файлы, которые превращаются в вещи.</p>
-              <div className="footer-links"><Link href="/">Каталог</Link><Link href="/purchases">Мои покупки</Link></div>
-              <small>© 2026 lola.stl · ИП [ФИО] · ИНН [—] · Оферта и лицензия · Политика обработки данных</small>
+              <div className="footer-links"><Link href="/">Каталог</Link>{s.hasArticles && <Link href="/blog">Статьи</Link>}<Link href="/account">Личный кабинет</Link></div>
+              <small>© {new Date().getFullYear()} lola.stl · {companyLine(s.company || {})}{s.company?.email ? " · " + s.company.email : ""} · Оферта и лицензия · Политика обработки данных</small>
             </div>
           </footer>
           {!adm && <TgMainButton />}

@@ -16,7 +16,7 @@ export async function POST(req) {
   const msg = u?.message;
   if (msg?.chat?.id && msg.chat.type === "private") {
     const text = String(msg.text || "");
-    if (text.startsWith("/purchases")) await sendTelegram(msg.chat.id, "Ваши покупки и файлы:", open("Мои покупки", "/purchases"));
+    if (text.startsWith("/purchases")) await sendTelegram(msg.chat.id, "Ваши покупки и файлы:", open("Личный кабинет", "/account"));
     else await sendTelegram(msg.chat.id,
       "Привет! Это магазин авторских STL-моделей lola.stl: кашпо и лотки для рассады для 3D-печати.\n\nЗа каждые 2 модели — третья в подарок. Файлы приходят сразу после оплаты, отпечатки можно продавать.",
       open("Открыть магазин"));

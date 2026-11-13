@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function robots() {
   if (!INDEXING) return { rules: { userAgent: "*", disallow: "/" } };
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/cart", "/checkout", "/purchases"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/cart", "/checkout", "/account", "/purchases", "/o/"] },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,
   };
