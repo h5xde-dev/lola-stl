@@ -700,9 +700,19 @@ export function AdminBundles() {
 
 // ---------- Письма и сообщения ----------
 export function AdminOutbox() {
-  const { admin } = useStore();
+  const { admin, s, toast } = useStore();
   const [items, setItems] = useState(null);
-  useEffect(() => { api("/api/admin/outbox").then(r => setItems(r.ok ? r.data.items : [])); }, []);
+  const [to, setTo] = useState(""), [sending, setSending] = useState(false);
+  const reload = () => api("/api/admin/outbox").then(r => setItems(r.ok ? r.data.items : []));
+  useEffect(() => { reload(); }, []);
+  const testMail = async e => {
+    e.preventDefault();
+    setSending(true);
+    const { ok, data } = await api("/api/admin/test-mail", { method: "POST", body: JSON.stringify({ to: to || s.company?.email }) });
+    setSending(false);
+    toast(ok ? "Тестовое письмо отправлено — проверьте почту" : data.error || "Письмо не ушло");
+    reload();
+  };
   const sv = admin?.services || {};
   const link = t => t.replace(/https?:\/\/\S+/g, u => `\u0000${u}\u0000`).split("\u0000");
   return (
@@ -718,6 +728,11 @@ export function AdminOutbox() {
             <div key={t} className="stat"><span>{t}</span><b className={"svc " + (on ? "on" : "")}>{v}</b></div>))}
         </div>
         <p className="panel-sub">Что подключить и где взять ключи — в README, раздел «Рабочий режим».</p>
+        {sv.mail === "smtp" && <form className="promo-field" style={{ margin: 0, maxWidth: 520 }} onSubmit={testMail}>
+          <label htmlFor="tmTo" className="sr-only">Куда отправить тестовое письмо</label>
+          <input id="tmTo" type="email" placeholder={s.company?.email || "ваш email"} value={to} onChange={e => setTo(e.target.value)} style={{ textTransform: "none", fontFamily: "var(--f-body)", letterSpacing: 0 }} />
+          <button type="submit" className="mini-btn" disabled={sending || !(to || s.company?.email)}>{sending ? "Отправляем…" : "Отправить тестовое письмо"}</button>
+        </form>}
       </section>
       <p className="panel-sub">Каждое письмо покупателю и сообщение бота. Пока почта не подключена, письма не уходят, но ссылки из них можно открыть отсюда.</p>
       {!items ? <div className="skeleton">Загрузка…</div> : !items.length ? <div className="empty-state">Писем пока не было.</div> :
