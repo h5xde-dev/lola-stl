@@ -12,5 +12,5 @@ M="backups/media-$(date +%F).tar.gz"
 docker compose exec -T app sh -c 'cd /app/.data 2>/dev/null && [ -d media ] && tar -cz media || true' > "$M"
 [ -s "$M" ] || rm -f "$M"
 ls -1t backups/*.sql.gz | tail -n +15 | xargs -r rm --
-ls -1t backups/media-*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm --
-echo "Копия базы: $F${M:+, картинки: $M}"
+ls -1t backups/media-*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm -- || true
+[ -f "$M" ] && echo "Копия базы: $F, картинки: $M" || echo "Копия базы: $F"
