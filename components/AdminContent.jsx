@@ -440,7 +440,7 @@ export function AdminAnalytics() {
           <Kpi label="Оплатили из оформивших" value={Math.round(k.conversion * 100) + "%"} note={`${k.orders} из ${k.created} заказов`} />
           <Kpi label="Покупатели" value={k.customers} note={`новых ${k.newCustomers} · повторных ${k.returning}`} />
           <Kpi label="Скидки" value={rub(k.discounts)} cur={k.discounts} prev={p?.discounts} money />
-          <Kpi label="Скачиваний" value={data.downloads} note={data.statuses.review ? `на проверке: ${data.statuses.review}` : "без подозрительных"} />
+          <Kpi label="Скачиваний" value={data.downloads} note="по ссылкам заказов и из кабинета" />
         </div>
         <section className="panel"><h2>Выручка {data.period.unit === "day" ? "по дням" : data.period.unit === "week" ? "по неделям" : "по месяцам"}</h2>
           {k.orders ? <RevenueChart series={data.series} unit={data.period.unit} /> : <p className="panel-sub">За этот период оплаченных заказов нет.</p>}

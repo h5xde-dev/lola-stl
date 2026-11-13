@@ -5,7 +5,7 @@ import { serializeOrders } from "@/lib/server/shop";
 
 export const dynamic = "force-dynamic";
 // Постоянная личная ссылка на заказ: открывает заказ на этом устройстве (кука доступа к заказу)
-// и возвращает его для страницы. Скачивания по-прежнему идут через лимиты и журнал.
+// и возвращает его для страницы.
 export const GET = wrap(async (req, { params }) => {
   const o = await orderByToken((await params).token);
   if (!o || o.status === "canceled") return bad("Заказ не найден. Проверьте ссылку из письма.", 404);

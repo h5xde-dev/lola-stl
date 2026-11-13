@@ -22,7 +22,7 @@ export const GET = wrap(async () => {
     categories, models, promoCodes, bundles, articles,
     home: mergeHome(st.home), seo: mergeSeo(st.seo), company: mergeCompany(st.company), payments: mergePayments(st.payments),
     prices: st.prices, promo: !!st.promo?.on, promoAuto: !!st.promo?.auto, promoStart: st.promo?.start, promoEnd: st.promo?.end,
-    loyalty: st.loyalty, downloadLimit: st.downloads?.limit || 5, downloadNets: st.downloads?.nets || 3,
+    loyalty: st.loyalty,
     orders: (await serializeOrders(orders.filter(o => o.status !== "pending"), { withLog: true })),
     pendingOrders: orders.filter(o => o.status === "pending").length,
     testOrders: orders.filter(o => o.test).length,
@@ -59,10 +59,6 @@ export const PUT = wrap(async req => {
     st.promo = { on: "promo" in b ? !!b.promo : cur.on, auto: "promoAuto" in b ? !!b.promoAuto : cur.auto, start: b.promoStart ?? cur.start, end: b.promoEnd ?? cur.end };
   }
   if (b.loyalty) st.loyalty = { on: !!b.loyalty.on, percent: Math.max(0, Math.min(99, Math.round(+b.loyalty.percent || 0))) };
-  if ("downloadLimit" in b) {
-    const cur = (await R.getSettings()).downloads || {};
-    st.downloads = { ...cur, limit: Math.max(1, Math.min(50, Math.round(+b.downloadLimit || 5))) };
-  }
   if (Object.keys(st).length) await R.setSettings(st);
   R.invalidate();              // кеш данных в памяти
   revalidatePath("/", "layout"); // кеш готовых страниц — сайт сразу показывает новые цены, акции и модели

@@ -4,7 +4,7 @@ import { orderIdFromCode } from "@/lib/server/repo";
 import { issueDownload } from "@/lib/server/shop";
 
 export const dynamic = "force-dynamic";
-// Личная ссылка на файл на 5 минут. Сервер проверяет владельца, лимит и места скачивания и пишет журнал.
+// Ссылка на файл на 5 минут. Сервер проверяет, что заказ открыт по его ссылке или в кабинете, и пишет журнал.
 export const POST = wrap(async req => {
   const { order, model } = await body(req);
   const r = await issueDownload({ orderId: orderIdFromCode(order), modelId: String(model || ""), customerId: await getCustomerId(), access: await getOrderAccess(), info: await clientInfo() });

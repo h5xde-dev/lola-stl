@@ -58,31 +58,29 @@ ok(me.orders[0].lines.reduce((a, l) => a + l.price, 0) === 2430, "позиции
 // скачивание
 r = await A.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) });
 let dl = await j(r);
-ok(r.status === 200 && dl.url.startsWith("/api/files/") && dl.left === 4, `ссылка выдана, осталось ${dl.left}`);
+ok(r.status === 200 && dl.url.startsWith("/api/files/"), "ссылка на файл выдана");
 const file = await A.f(dl.url);
 ok(file.status === 200 && new RegExp(`glubina_${co.code}\\.stl`).test(decodeURIComponent(file.headers.get("content-disposition"))), "файл отдаётся с номером заказа в имени");
 ok((await Bx.f(dl.url)).status === 200, "ссылка на файл работает 5 минут у любого (поэтому короткая)");
 ok((await A.f("/api/files/" + "x." + "y")).status === 410, "поддельный токен — 410");
-ok((await Bx.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) })).status === 403, "чужой браузер не получает ссылку");
+ok((await Bx.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) })).status === 403, "чужой браузер без ссылки заказа не получает файл");
 ok((await A.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p06" }) })).status === 404, "модели не из заказа — нет");
-for (let i = 0; i < 4; i++) await A.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) });
-r = await A.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) });
-ok(r.status === 429, "шестое скачивание — лимит исчерпан");
-
-// много сетей → проверка
-for (const ip of ["20.0.1.5", "30.0.1.5"]) await A.f("/api/download", { ip, method: "POST", body: JSON.stringify({ order: co.code, model: "p02" }) });
-r = await A.f("/api/download", { ip: "40.0.1.5", method: "POST", body: JSON.stringify({ order: co.code, model: "p02" }) });
-ok(r.status === 423, "четвёртая сеть за сутки — заказ на проверке");
+// без лимита и без блокировки по сетям
+let codes = [];
+for (const ip of ["10.0.0.1", "20.0.1.5", "30.0.1.5", "40.0.1.5", "50.0.1.5", "60.0.1.5", "70.0.1.5"]) codes.push((await A.f("/api/download", { ip, method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) })).status);
+ok(codes.every(c => c === 200), "скачивания без ограничений, из любых сетей");
 
 // админка
 ok((await jar().f("/api/admin/state")).status === 401, "админка без входа закрыта");
 ok((await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: "wrong" }) })).status === 401, "неверный пароль не пускает");
 let as = await j(await adm.f("/api/admin/state"));
-ok(as.orders[0].status === "review" && as.orders[0].log.length >= 7, `админка видит заказ на проверке и журнал (${as.orders[0].log.length})`);
+ok(as.orders[0].status === "paid" && as.orders[0].log.length >= 8, `админка видит журнал скачиваний (${as.orders[0].log.length})`);
+await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "revoke" }) });
+ok((await A.f("/api/download", { method: "POST", body: JSON.stringify({ order: co.code, model: "p01" }) })).status === 403, "владелица закрыла доступ — файл не выдаётся");
 await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "open" }) });
-await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "reset" }) });
 me = await j(await A.f("/api/me"));
-ok(me.orders[0].status === "paid" && !me.orders[0].downloads.p01, "доступ открыт, лимит сброшен");
+ok(me.orders[0].status === "paid", "доступ снова открыт");
+await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "resend" }) });
 
 // вход по ссылке из письма на «другом устройстве»
 await Bx.f("/api/auth/request", { method: "POST", body: JSON.stringify({ email: "buyer@example.ru" }) });

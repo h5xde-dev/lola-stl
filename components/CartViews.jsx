@@ -179,7 +179,7 @@ export function CheckoutView() {
         </form>
         <div>
           <Summary title="В заказе" withCode />
-          <div className="digital-note"><Download size={17} aria-hidden="true" /><span>Файлы будут доступны сразу после оплаты в личном кабинете и по личной ссылке на заказ: каждую модель можно скачать до {s.downloadLimit || 5} раз по личной ссылке.</span></div>
+          <div className="digital-note"><Download size={17} aria-hidden="true" /><span>Файлы будут доступны сразу после оплаты по уникальной ссылке на заказ и в личном кабинете.</span></div>
         </div>
       </div>
     </div>
@@ -223,7 +223,6 @@ export function ReturnView() {
 }
 
 const STATUS = {
-  review: "Скачивание приостановлено: по заказу заметили необычную активность. Напишите нам — разберёмся и откроем доступ.",
   revoked: "Доступ к файлам этого заказа закрыт. Если это ошибка, напишите нам.",
 };
 
@@ -249,28 +248,27 @@ function LinkRequest() {
       </form>;
 }
 
-// Скачивание: сервер проверяет покупателя, лимит и места скачивания, пишет журнал и выдаёт ссылку на 5 минут.
+// Скачивание: сервер проверяет доступ к заказу, пишет журнал и выдаёт ссылку на файл на 5 минут.
 function useDownload(after) {
-  const { s, toast } = useStore();
+  const { toast } = useStore();
   const [busy, setBusy] = useState("");
-  const limit = s.downloadLimit || 5;
   const download = async (o, id) => {
     setBusy(o.id + id);
     const { ok, data } = await api("/api/download", { method: "POST", body: JSON.stringify({ order: o.id, model: id }) });
     setBusy("");
     if (!ok) { toast(data.error || "Не получилось скачать. Попробуйте ещё раз."); after?.(); return; }
     location.href = data.url;
-    toast(`Скачивание началось. Осталось ${data.left} из ${limit}.`);
+    toast("Скачивание началось");
     setTimeout(() => after?.(), 800);
   };
-  return { busy, download, limit };
+  return { busy, download };
 }
 
 // Блок заказа: модели со скачиванием, постоянная ссылка на заказ и чек
 function OrderBlock({ o, dl, showLink = true }) {
   const { byId, toast, flash } = useStore();
-  const { busy, download, limit } = dl;
-  const blocked = o.status && o.status !== "paid";
+  const { busy, download } = dl;
+  const blocked = o.status === "revoked";
   const ids = o.items.filter(id => byId[id]);
   const copy = async () => {
     try { await navigator.clipboard.writeText(location.origin + o.link); toast("Ссылка на заказ скопирована"); }
@@ -287,17 +285,17 @@ function OrderBlock({ o, dl, showLink = true }) {
       </div>
       {blocked && <div className="order-alert"><Lock size={16} aria-hidden="true" /><span>{STATUS[o.status] || STATUS.revoked}</span></div>}
       {ids.map(id => {
-        const m = byId[id], used = (o.downloads || {})[id] || 0, left = Math.max(0, limit - used);
+        const m = byId[id];
         return (
           <div className="library-item" key={id}>
             <Link href={modelHref(m)} className="library-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"o-" + o.id + id} sizes="64px" /></Link>
-            <div><b>{m.name}</b><span>{m.slug}_{o.id} · {zipMb(m)} МБ · <span className={left ? "" : "err"}>осталось {left} из {limit}</span></span></div>
-            <button type="button" className="download-button" disabled={blocked || !left || busy === o.id + id} aria-label={`Скачать «${m.name}»`} onClick={() => download(o, id)}>
-              <Download size={16} /><span>{busy === o.id + id ? "Готовим…" : left ? "Скачать" : "Лимит исчерпан"}</span></button>
+            <div><b>{m.name}</b><span>{m.slug}_{o.id} · {zipMb(m)} МБ</span></div>
+            <button type="button" className="download-button" disabled={blocked || busy === o.id + id} aria-label={`Скачать «${m.name}»`} onClick={() => download(o, id)}>
+              <Download size={16} /><span>{busy === o.id + id ? "Готовим…" : "Скачать"}</span></button>
           </div>
         );
       })}
-      <div className="order-foot"><span>Ссылка на заказ постоянная и личная — не пересылайте её. Передавать файлы третьим лицам запрещено лицензией.</span>{o.email && <span>Чек отправлен на {o.email}</span>}</div>
+      <div className="order-foot"><span>Ссылка на заказ уникальная и постоянная — не пересылайте её. Передавать файлы третьим лицам запрещено лицензией.</span>{o.email && <span>Чек отправлен на {o.email}</span>}</div>
     </section>
   );
 }

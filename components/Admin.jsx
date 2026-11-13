@@ -15,7 +15,7 @@ import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
 const live = s => s.models.filter(m => !m.deleted);
 
-const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "articles", "home", "seo", "company", "payments"];
+const SYNC = ["categories", "models", "promoCodes", "bundles", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "articles", "home", "seo", "company", "payments"];
 
 function AdminLogin({ onDone }) {
   const [login, setLogin] = useState(""), [pw, setPw] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
@@ -329,10 +329,8 @@ export function AdminPrices() {
         <div className="price-grid">
           <PriceCell onSave={(k, v) => { const n = Math.round(Number(v)); if (!(n > 0 && n < 100)) { toast("Процент от 1 до 99"); return false; } set(p => ({ loyalty: { ...p.loyalty, percent: n } })); toast("Скидка сохранена"); return true; }}
             k="loyalty" label="Скидка, %" val={s.loyalty?.percent || 10} />
-          <PriceCell onSave={(k, v) => { const n = Math.round(Number(v)); if (!(n >= 1 && n <= 50)) { toast("Лимит от 1 до 50"); return false; } set({ downloadLimit: n }); toast("Лимит сохранён"); return true; }}
-            k="dl" label="Скачиваний на модель" val={s.downloadLimit || 5} />
         </div>
-        <p className="note">Ссылка на файл действует 5 минут и работает только у покупателя. Если по заказу скачивают из многих мест сразу, заказ встаёт «на проверку» — его видно в разделе «Заказы».</p>
+        <p className="note">Файлы скачиваются по уникальной ссылке заказа и из личного кабинета, без ограничения числа скачиваний. Журнал скачиваний и закрытие доступа — в разделе «Заказы».</p>
       </section>
       <section className="panel"><h2>Акция «1+1»</h2>
         <p className="panel-sub">За каждую оплаченную модель покупатель выбирает одну в подарок. «2+1» в это время не действует, боксы идут по цене акции.</p>
@@ -374,12 +372,11 @@ export function AdminPrices() {
   );
 }
 
-const ORDER_ST = { paid: ["Оплачен", ""], review: ["На проверке", "warn"], revoked: ["Доступ закрыт", "off"], refunded: ["Возврат", "off"] };
+const ORDER_ST = { paid: ["Оплачен", ""], review: ["Оплачен", ""], revoked: ["Доступ закрыт", "off"], refunded: ["Возврат", "off"] };
 
 export function AdminOrders() {
   const { s, byId, toast, loadAdmin, admin } = useStore();
   const [open, setOpen] = useState(null);
-  const limit = s.downloadLimit || 5;
   const os = s.orders.slice().sort((a, b) => b.date - a.date);
   const rev = os.filter(o => o.status !== "refunded" && !o.test).reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
   const nm = id => byId[id] ? byId[id].name : id;
@@ -419,7 +416,7 @@ export function AdminOrders() {
                   <b className="od-h">Позиции чека</b>
                   <table className="tbl compact"><tbody>{(o.lines || o.items.map(id => ({ id, price: 0 }))).map((l, i) => (
                     <tr key={i}><td>{nm(l.id)}{l.set ? <span className="meta"> · набор</span> : l.gift ? <span className="meta"> · подарок</span> : null}</td>
-                      <td className="r">{rub(l.price)}</td><td className="r meta">скачано {(o.downloads || {})[l.id] || 0} из {limit}</td></tr>))}</tbody></table>
+                      <td className="r">{rub(l.price)}</td><td className="r meta">скачано {(o.downloads || {})[l.id] || 0}</td></tr>))}</tbody></table>
                 </div>
                 <div>
                   <b className="od-h">Журнал скачиваний</b>
@@ -427,12 +424,11 @@ export function AdminOrders() {
                     <li key={i}><span className="mono">{new Date(e.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> · {nm(e.id)} · {e.ip}<div className="meta">{e.ua}</div></li>))}</ul>
                     : <p className="meta">Ещё не скачивали.</p>}
                   <div className="actions" style={{ marginTop: 10 }}>
-                    <button type="button" className="mini-btn" onClick={() => act(o.id, "reset", "Лимит скачиваний сброшен")}>Сбросить лимит</button>
-                    {o.status === "review" || o.status === "revoked"
+                    {o.link && <a href={o.link} target="_blank" rel="noopener" className="mini-btn">Ссылка на заказ</a>}
+                    {o.status === "revoked"
                       ? <button type="button" className="mini-btn" onClick={() => act(o.id, "open", "Доступ открыт")}>Открыть доступ</button>
-                      : <button type="button" className="mini-btn" onClick={() => act(o.id, "review", "Заказ на проверке: скачивание приостановлено")}>На проверку</button>}
-                    {o.status !== "revoked" && <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => act(o.id, "revoke", "Доступ к файлам закрыт")}>Закрыть доступ</button>}
-                    <button type="button" className="mini-btn" onClick={() => act(o.id, "resend", "Новая ссылка на покупки отправлена")}>Отправить ссылку ещё раз</button>
+                      : <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => act(o.id, "revoke", "Доступ к файлам закрыт")}>Закрыть доступ</button>}
+                    <button type="button" className="mini-btn" onClick={() => act(o.id, "resend", "Ссылка на заказ отправлена покупателю")}>Отправить ссылку на заказ</button>
                   </div>
                 </div>
               </div>

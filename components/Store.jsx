@@ -10,13 +10,13 @@ import { rub } from "@/lib/format";
 
 const KEY = "lola-cart-v1";
 const LOCAL = ["cart", "mode", "filter", "q", "email", "favs", "code"];
-const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "downloadLimit", "bundles", "promoCodes", "articles", "home", "seo", "company", "payments"];
+const CATALOG = ["categories", "models", "prices", "promo", "promoAuto", "promoStart", "promoEnd", "loyalty", "bundles", "promoCodes", "articles", "home", "seo", "company", "payments"];
 
 function seed(initial) {
   return {
     cart: [], mode: "site", filter: "all", q: "", email: "", favs: [], code: "",
     categories: [], models: [], prices: null, promo: false, promoAuto: false, promoStart: "", promoEnd: "",
-    loyalty: { on: false, percent: 0 }, downloadLimit: 5, bundles: [], promoCodes: [], orders: [],
+    loyalty: { on: false, percent: 0 }, bundles: [], promoCodes: [], orders: [],
     ...initial,
   };
 }
