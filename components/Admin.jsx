@@ -721,14 +721,14 @@ export function AdminOutbox() {
       <section className="panel"><h2>Подключённые сервисы</h2>
         <div className="svc-grid">
           {[["Оплата", sv.yookassa ? "ЮKassa" : "ЮKassa не подключена", sv.yookassa],
-            ["Почта", sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail === "smtp"],
+            ["Почта", sv.mail === "unisender" ? "Unisender Go" : sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail !== "journal"],
             ["Файлы", sv.storage === "s3" ? "S3-хранилище" : "папка на сервере", sv.storage === "s3"],
             ["Telegram-бот", sv.telegram ? "подключён" : "нет токена", sv.telegram],
             ["База", sv.db === "postgres" ? "PostgreSQL" : "встроенная (для проверки)", sv.db === "postgres"]].map(([t, v, on]) => (
             <div key={t} className="stat"><span>{t}</span><b className={"svc " + (on ? "on" : "")}>{v}</b></div>))}
         </div>
         <p className="panel-sub">Что подключить и где взять ключи — в README, раздел «Рабочий режим».</p>
-        {sv.mail === "smtp" && <form className="promo-field" style={{ margin: 0, maxWidth: 520 }} onSubmit={testMail}>
+        {sv.mail && sv.mail !== "journal" && <form className="promo-field" style={{ margin: 0, maxWidth: 520 }} onSubmit={testMail}>
           <label htmlFor="tmTo" className="sr-only">Куда отправить тестовое письмо</label>
           <input id="tmTo" type="email" placeholder={s.company?.email || "ваш email"} value={to} onChange={e => setTo(e.target.value)} style={{ textTransform: "none", fontFamily: "var(--f-body)", letterSpacing: 0 }} />
           <button type="submit" className="mini-btn" disabled={sending || !(to || s.company?.email)}>{sending ? "Отправляем…" : "Отправить тестовое письмо"}</button>

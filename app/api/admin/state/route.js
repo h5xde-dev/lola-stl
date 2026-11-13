@@ -3,7 +3,7 @@ import { adminOnly, body, json, wrap } from "@/lib/server/http";
 import * as R from "@/lib/server/repo";
 import { serializeOrders } from "@/lib/server/shop";
 import { provider } from "@/lib/server/pay";
-import { mailConfigured } from "@/lib/server/notify";
+import { mailProvider } from "@/lib/server/notify";
 import { deleteFile, s3Configured } from "@/lib/server/storage";
 import { mergeCompany, mergeHome, mergeSeo } from "@/lib/content";
 import { mergePayments, PAY_METHODS } from "@/lib/payments";
@@ -26,7 +26,7 @@ export const GET = wrap(async () => {
     orders: (await serializeOrders(orders.filter(o => o.status !== "pending"), { withLog: true })),
     pendingOrders: orders.filter(o => o.status === "pending").length,
     testOrders: orders.filter(o => o.test).length,
-    services: { yookassa: yookassaReady(), payments: provider(), mail: mailConfigured() ? "smtp" : "journal", storage: s3Configured() ? "s3" : "local", telegram: !!process.env.TELEGRAM_BOT_TOKEN, db: process.env.DATABASE_URL ? "postgres" : "pglite" },
+    services: { yookassa: yookassaReady(), payments: provider(), mail: mailProvider() || "journal", storage: s3Configured() ? "s3" : "local", telegram: !!process.env.TELEGRAM_BOT_TOKEN, db: process.env.DATABASE_URL ? "postgres" : "pglite" },
   });
 });
 
