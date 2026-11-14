@@ -13,10 +13,10 @@ export default function Catalog({ category }) {
   const all = s.models.filter(m => !m.hidden && !m.deleted);
   const pub = category ? all.filter(m => m.category === category) : all;
   const used = cats.filter(c => all.some(m => m.category === c.id));
-  const chips = [["all", "Все модели"], ...used.map(c => [c.id, c.name]), ["new", "Новинки"]];
+  const chips = [["all", "Все модели"], ...used.map(c => [c.id, c.name]), ["new", "Новинки"], ...(all.some(m => m.free) ? [["free", "Бесплатные"]] : [])];
   const filter = category || chips.some(([k]) => k === s.filter) ? s.filter : "all";
   const q = s.q.trim().toLowerCase();
-  const match = m => (category || filter === "all" || (filter === "new" ? m.isNew : m.category === filter)) &&
+  const match = m => (category || filter === "all" || (filter === "new" ? m.isNew : filter === "free" ? m.free : m.category === filter)) &&
     (!q || m.name.toLowerCase().includes(q) || (m.tags || []).some(t => t.includes(q)));
   const list = pub.filter(match);
   const sets = (s.bundles || []).filter(b => b.active && !b.deleted && b.items.some(id => all.some(m => m.id === id)));

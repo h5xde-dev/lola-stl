@@ -14,6 +14,7 @@ export default async function sitemap() {
       images: list.filter(m => m.category === c.id).flatMap(img),
     })),
     ...list.map(m => ({ url: `${SITE_URL}/models/${m.slug}`, lastModified: m.updated, changeFrequency: "monthly", priority: .8, images: img(m) })),
+    ...(list.some(m => m.free) ? [{ url: `${SITE_URL}/free`, lastModified: latest, changeFrequency: "weekly", priority: .8 }] : []),
     ...(posts.length ? [{ url: `${SITE_URL}/blog`, lastModified: posts[0].updated, changeFrequency: "weekly", priority: .6 }] : []),
     ...posts.map(a => ({ url: `${SITE_URL}/blog/${a.slug}`, lastModified: a.updated, changeFrequency: "monthly", priority: .6,
       images: a.cover?.src?.startsWith("/") ? [SITE_URL + a.cover.src] : [] })),

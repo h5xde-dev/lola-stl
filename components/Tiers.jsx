@@ -33,8 +33,8 @@ export default function Tiers() {
           ? <div className="tier"><span className="tier-n">16+</span><span className="tier-sub">моделей всего</span><span className="tier-p">{rub(pr.per8 / 2)} за модель</span></div>
           : <div className="tier"><span className="tier-n">8+ <span className="g">+ 50%</span></span><span className="tier-sub">оплаченных моделей</span><span className="tier-p">{rub(pr.per8)} за модель</span></div>}
         <div className="tiers-foot">
-          <span>{p ? `Боксы по акции: ${rub(pr.boxPromo)} за штуку` : `Боксы: 1 — ${rub(pr.box[1])}, 2 — ${rub(pr.box[2])}, 3 — ${rub(pr.box[3])}, от 4 — ${rub(pr.box4)} за штуку`}</span>
-          <span>На боксы подарки не распространяются</span>
+          <span>{`Боксы: 1 — ${rub(pr.box[1])}, 2 — ${rub(pr.box[2])}, 3 — ${rub(pr.box[3])}, от 4 — ${rub(pr.box4)} за штуку`}</span>
+          <span>Боксы продаются отдельно: акции, подарки и промокоды на них не действуют</span>
         </div>
       </div>
     </details>

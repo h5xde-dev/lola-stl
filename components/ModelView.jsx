@@ -25,7 +25,7 @@ export default function ModelView({ initial }) {
   const cat = catOf(m, cats);
 
   const giftText = isBox
-    ? { b: "Боксы считаются отдельно", t: (promo ? `По акции любой бокс ${rub(pr.boxPromo)}. ` : `Один бокс ${rub(pr.box[1])}, от 4 штук ${rub(pr.box4)} за каждый. `) + "Подарки на боксы не действуют." }
+    ? { b: "Боксы считаются отдельно", t: `Один бокс ${rub(pr.box[1])}, от 4 штук ${rub(pr.box4)} за каждый. Акции, подарки и промокоды на боксы не действуют.` }
     : promo
       ? { b: "Акция «1+1»", t: `К каждой оплаченной модели одна в подарок. Одна модель ${rub(paidPrice(pr, 1))}.` }
       : { b: "Подарок по «2+1»", t: `Возьмите две модели за ${rub(paidPrice(pr, 2))}, и третья будет бесплатно.` };
@@ -74,6 +74,8 @@ export default function ModelView({ initial }) {
             ? <div className="detail-price in"><Check size={20} aria-hidden="true" /> Уже куплена</div>
             : inCart
             ? <div className="detail-price in"><Check size={20} aria-hidden="true" /> В корзине</div>
+            : m.free
+              ? <div className="detail-price gift">Бесплатно <small>файл придёт на email</small></div>
             : gift || cost === 0
               ? <div className="detail-price gift">0 ₽ <small>пойдёт в подарок</small></div>
               : <div className="detail-price">{hasSame ? "+" : ""}{rub(cost)} {hasSame && <small>к сумме заказа</small>}</div>}
@@ -87,19 +89,19 @@ export default function ModelView({ initial }) {
             {m.print && <div className="detail-spec"><dt>Печать</dt><dd>{m.print}</dd></div>}
             {m.material && <div className="detail-spec"><dt>Пластик</dt><dd>{m.material}</dd></div>}
             <div className="detail-spec"><dt>Лицензия</dt><dd>личное использование и продажа отпечатков</dd></div>
-            <div className="detail-spec"><dt>Доставка</dt><dd>сразу после оплаты</dd></div>
+            <div className="detail-spec"><dt>Доставка</dt><dd>{m.free ? "сразу после оформления" : "сразу после оплаты"}</dd></div>
           </dl>
 
-          <div className={"gift-note" + (promo && !isBox ? " on" : "")}>
+          {!m.free && <div className={"gift-note" + (promo && !isBox ? " on" : "")}>
             {isBox ? <Sparkles size={20} aria-hidden="true" /> : <Gift size={20} aria-hidden="true" />}
             <span><b>{giftText.b}</b><small>{giftText.t}</small></span>
-          </div>
+          </div>}
 
           <div className="detail-actions">
             {isOwned ? <Link href="/account" className="button button-dark full">Скачать в личном кабинете <ArrowRight size={17} /></Link>
             : inSet ? <Link href="/cart" className="button button-outline full">Входит в набор в корзине</Link>
             : <button type="button" className={"button full " + (inCart ? "button-outline" : gift ? "button-gift" : "button-dark")} onClick={() => toggleCart(m.id)}>
-              {inCart ? "Убрать из корзины" : gift ? <><Gift size={17} /> Взять в подарок</> : <>Добавить в корзину <ArrowRight size={17} /></>}
+              {inCart ? "Убрать из корзины" : m.free ? <>Получить бесплатно <ArrowRight size={17} /></> : gift ? <><Gift size={17} /> Взять в подарок</> : <>Добавить в корзину <ArrowRight size={17} /></>}
             </button>}
             {inCart && !inSet && !isOwned && <Link href="/cart" className="button button-dark full">Перейти в корзину <ArrowRight size={17} /></Link>}
           </div>

@@ -123,7 +123,7 @@ export function AdminModels() {
           {list.length ? list.map(m => (
             <tr key={m.id} className={m.hidden ? "off" : ""}>
               <td><div className="thumb"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
-              <td><b>{m.name}</b>{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
+              <td><b>{m.name}</b>{m.free && <> <span className="tag test">бесплатно</span></>}{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
               <td>{kindName(m, cats)}</td>
               <td className="r mono">{m.mb ? m.mb + " МБ" : "нет файла"}</td>
               <td className="r">{sales[m.id] || 0}</td>
@@ -268,6 +268,7 @@ export function AdminEditor({ id }) {
           <SeoFields title={d.seoTitle} desc={d.seoDesc} onChange={upd} idp="m"
             hintTitle={`${d.name || "Название"} — STL-модель … для 3D-печати`} hintDesc="Описание модели + размер, настройки печати и размер файла" />
           <div className="actions">
+            <label className="check"><input type="checkbox" checked={!!d.free} onChange={e => upd({ free: e.target.checked })} /><span>Бесплатная модель</span></label>
             <label className="check"><input type="checkbox" checked={!!d.isNew} onChange={e => upd({ isNew: e.target.checked })} /><span>Отметить как новинку</span></label>
             <label className="check"><input type="checkbox" checked={!!d.vase} onChange={e => upd({ vase: e.target.checked })} /><span>Печать в режиме вазы</span></label>
             <label className="check"><input type="checkbox" checked={!d.hidden} onChange={e => upd({ hidden: !e.target.checked })} /><span>Показывать в каталоге</span></label>
@@ -353,10 +354,10 @@ export function AdminPrices() {
         {pr.prov.length > 0 && <p className="note">Цен за {pr.prov.join(", ")} модели не было в задании, здесь стоят предварительные. Измените цену, и она станет согласованной.</p>}
       </section>
       <section className="panel"><h2>Боксы</h2>
-        <p className="panel-sub">Без подарков. Во время акции действует одна цена за штуку.</p>
+        <p className="panel-sub">Боксы продаются по своей шкале: акции «1+1», подарки, промокоды и скидка постоянным на них не действуют.</p>
         <div className="price-grid">
           <PriceCell onSave={setPrice} k="box.1" label="1 бокс" val={pr.box[1]} /><PriceCell onSave={setPrice} k="box.2" label="2 бокса" val={pr.box[2]} /><PriceCell onSave={setPrice} k="box.3" label="3 бокса" val={pr.box[3]} />
-          <PriceCell onSave={setPrice} k="box4" label="от 4, за штуку" val={pr.box4} /><PriceCell onSave={setPrice} k="boxPromo" label="по акции, за штуку" val={pr.boxPromo} />
+          <PriceCell onSave={setPrice} k="box4" label="от 4, за штуку" val={pr.box4} />
         </div>
       </section>
       <section className="panel"><h2>Проверка: что покажет корзина</h2>

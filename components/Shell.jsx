@@ -66,6 +66,7 @@ function Header() {
             <Link key={c.id} href={categoryHref(c)} aria-current={path === `/category/${c.slug}` ? "page" : undefined} onClick={() => setOpen(false)}>{c.name}</Link>
           ))}
           <Link href="/#catalog" aria-current={home && s.filter === "new" ? "page" : undefined} onClick={() => { set({ filter: "new", q: "" }); setOpen(false); }}>Новинки</Link>
+          {s.models.some(m => m.free && !m.hidden && !m.deleted) && <Link href="/free" aria-current={path === "/free" ? "page" : undefined} onClick={() => setOpen(false)}>Бесплатно</Link>}
           {s.hasArticles && <Link href="/blog" aria-current={path.startsWith("/blog") ? "page" : undefined} onClick={() => setOpen(false)}>Статьи</Link>}
         </nav>
         <div className="header-actions">

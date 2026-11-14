@@ -55,7 +55,10 @@ function Summary({ title = "Ваш заказ", withBtn, withCode }) {
       </>}
       {Q.boxes.length > 0 && <>
         <div className="summary-row"><span>Боксы · {Q.boxes.length}</span><b>{rub(Q.bp)}</b></div>
-        <div className="summary-sub">{promo ? "по " + rub(s.prices.boxPromo) + " по акции" : "без подарков"}</div>
+        <div className="summary-sub">отдельная цена, без акций и скидок</div>
+      </>}
+      {(Q.free || []).length > 0 && <>
+        <div className="summary-row"><span>Бесплатные · {Q.free.length}</span><b>0 ₽</b></div>
       </>}
       {Q.discount && <div className="summary-row discount"><span><BadgePercent size={14} aria-hidden="true" /> {Q.discount.label}</span><b>−{rub(Q.discount.amount)}</b></div>}
       {pq.free > 0
@@ -64,7 +67,7 @@ function Summary({ title = "Ваш заказ", withBtn, withCode }) {
       {withCode && <PromoField />}
       <div className="summary-total"><span>К оплате</span><strong>{rub(Q.total)}</strong></div>
       {Q.save > 0 && <div className="summary-save">Выгода {rub(Q.save)} по сравнению с покупкой по одной</div>}
-      {withBtn && <Link href="/checkout" className="button button-dark full site-only">Перейти к оплате <ArrowRight size={17} /></Link>}
+      {withBtn && <Link href="/checkout" className="button button-dark full site-only">{Q.total === 0 ? "Получить файлы" : "Перейти к оплате"} <ArrowRight size={17} /></Link>}
       {pq.prov && <p className="price-warning">* Цена за {s.prices.prov.join(", ")} оплачиваемых моделей предварительная и будет уточнена.</p>}
       {withBtn && <small className="summary-footnote">Файлы для скачивания появятся сразу после оплаты.</small>}
     </aside>
@@ -113,6 +116,10 @@ export function CartView() {
             {Q.boxes.length > 0 && <section className="cart-group" aria-label="Боксы">
               <div className="cart-list-head"><span>БОКСЫ</span><span>{Q.boxes.length}</span></div>
               {Q.boxes.map(id => <Line key={id} id={id} tag="бокс" />)}
+            </section>}
+            {(Q.free || []).length > 0 && <section className="cart-group" aria-label="Бесплатные модели">
+              <div className="cart-list-head"><span>БЕСПЛАТНЫЕ</span><span>{Q.free.length}</span></div>
+              {Q.free.map(id => <Line key={id} id={id} tag="бесплатно" gift />)}
             </section>}
             <Link href="/#catalog" className="continue-link"><ArrowLeft size={15} /> Продолжить покупки</Link>
           </div>
@@ -174,7 +181,7 @@ export function CheckoutView() {
           <label className="check-row"><input type="checkbox" name="agree" /><span>Принимаю условия оферты и лицензии: файлы для личного использования и продажи отпечатков, передавать и публиковать файлы нельзя</span></label>
           {errors.agree && <span className="err">{errors.agree}</span>}
           {errors.form && <span className="err">{errors.form}</span>}
-          <button type="submit" className="button button-dark full site-only" disabled={busy || (!free && !methods.length)}>{busy ? "Создаём заказ…" : <>Оплатить {rub(Q.total)} <ArrowRight size={17} /></>}</button>
+          <button type="submit" className="button button-dark full site-only" disabled={busy || (!free && !methods.length)}>{busy ? "Создаём заказ…" : free ? <>Получить файлы <ArrowRight size={17} /></> : <>Оплатить {rub(Q.total)} <ArrowRight size={17} /></>}</button>
           {!free && methods.some(m => !m.test) && <p className="terms-note">Оплата проходит на защищённой странице ЮKassa{tg ? ", после оплаты вы вернётесь сюда" : ""}.</p>}
         </form>
         <div>

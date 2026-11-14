@@ -162,3 +162,17 @@ ok(del.deleted >= 1 && as.orders.length === 0, `тестовые заказы у
 await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: false } }) });
 ok((await jar().f(`/pay/mock/${co.code}`)).status === 404, "страница тестовой оплаты закрыта, когда тест выключен");
 ok((await jar().f("/api/admin/analytics")).status === 401, "аналитика только для админа");
+
+// бесплатные модели: заказ на 0 ₽ без оплаты, раздел /free
+as = await j(await adm.f("/api/admin/state"));
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: as.models.map(m => m.id === "p05" ? { ...m, free: true } : m) }) });
+const freePage = await (await jar().f("/free")).text();
+ok(freePage.includes("Ромашки") && freePage.includes('"price":0'), "раздел бесплатных моделей с разметкой цены 0");
+const F = jar();
+q = await j(await F.f("/api/quote", { method: "POST", body: JSON.stringify({ cart: ["p05", "p01", "p02"] }) }));
+ok(q.total === 1200 && q.free.includes("p05") && q.pq.free === 1, "бесплатная модель 0 ₽ и не забирает подарок «2+1»");
+r = await F.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p05"], email: "free@example.ru", agree: true }) });
+const fo = await j(r);
+ok(r.status === 200 && fo.total === 0 && fo.url.includes("/checkout/return"), "бесплатный заказ оформляется без оплаты");
+me = await j(await F.f("/api/me"));
+ok(me.orders[0]?.status === "paid" && me.orders[0].items.includes("p05"), "бесплатная модель сразу в личном кабинете");

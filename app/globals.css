@@ -1227,3 +1227,10 @@ body { background: var(--bg); }
 .radio-list b { color: var(--ink); }
 .tag.test { border-color: var(--cyan); color: var(--cyan); }
 .payment-option.test { border-style: dashed; }
+
+/* бесплатные модели */
+.product-tag.free { background: var(--gift); color: #062a26; border-color: transparent; }
+.price.free { color: var(--gift); font-weight: 700; }
+/* шапка: пункты меню не переносятся на две строки */
+.main-nav a, .header-link { white-space: nowrap; }
+@media (max-width: 1100px) and (min-width: 821px) { .main-nav { gap: 14px; } .main-nav a { font-size: 13px; } }

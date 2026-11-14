@@ -21,9 +21,9 @@ export async function generateMetadata({ params }) {
   const cats = await getCategories();
   const title = m.seoTitle || `${m.name} — STL-модель ${kindGen(m, cats)} для 3D-печати`;
   const extra = [m.dims && `Размер ${m.dims}`, m.print].filter(Boolean).join(", ");
-  const description = m.seoDesc || `${m.desc} ${extra ? extra + ". " : ""}Файл STL ${m.mb} МБ сразу после оплаты, продажа отпечатков разрешена.`;
+  const description = m.seoDesc || `${m.desc} ${extra ? extra + ". " : ""}${m.free ? `Бесплатный файл STL ${m.mb} МБ — сразу на email` : `Файл STL ${m.mb} МБ сразу после оплаты`}, продажа отпечатков разрешена.`;
   const prices = await getPrices();
-  const price = m.cat === "box" ? boxPrice(prices, 1, false) : paidPrice(prices, 1);
+  const price = m.free ? 0 : m.cat === "box" ? boxPrice(prices, 1) : paidPrice(prices, 1);
   return {
     title,
     description,
@@ -48,7 +48,7 @@ export default async function ModelPage({ params }) {
   if (!m) notFound();
   const url = `${SITE_URL}/models/${m.slug}`;
   const prices = await getPrices();
-  const price = m.cat === "box" ? boxPrice(prices, 1, false) : paidPrice(prices, 1);
+  const price = m.free ? 0 : m.cat === "box" ? boxPrice(prices, 1) : paidPrice(prices, 1);
   const cats = await getCategories();
   const cat = catOf(m, cats);
   return (
