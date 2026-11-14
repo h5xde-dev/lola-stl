@@ -259,9 +259,9 @@ function LinkRequest() {
 function useDownload(after) {
   const { toast } = useStore();
   const [busy, setBusy] = useState("");
-  const download = async (o, id) => {
-    setBusy(o.id + id);
-    const { ok, data } = await api("/api/download", { method: "POST", body: JSON.stringify({ order: o.id, model: id }) });
+  const download = async (o, id, file) => {
+    setBusy(o.id + id + (file || ""));
+    const { ok, data } = await api("/api/download", { method: "POST", body: JSON.stringify({ order: o.id, model: id, file }) });
     setBusy("");
     if (!ok) { toast(data.error || "Не получилось скачать. Попробуйте ещё раз."); after?.(); return; }
     location.href = data.url;
@@ -292,13 +292,19 @@ function OrderBlock({ o, dl, showLink = true }) {
       </div>
       {blocked && <div className="order-alert"><Lock size={16} aria-hidden="true" /><span>{STATUS[o.status] || STATUS.revoked}</span></div>}
       {ids.map(id => {
-        const m = byId[id];
+        const m = byId[id], files = m.files || [];
+        const btn = (f, label) => {
+          const k = o.id + id + (f?.id || "");
+          return <button type="button" className="download-button" disabled={blocked || busy === k} aria-label={`Скачать «${f?.name || m.name}»`} onClick={() => download(o, id, f?.id)}>
+            <Download size={16} /><span>{busy === k ? "Готовим…" : label}</span></button>;
+        };
         return (
-          <div className="library-item" key={id}>
+          <div className={"library-item" + (files.length > 1 ? " multi" : "")} key={id}>
             <Link href={modelHref(m)} className="library-thumb" aria-label={`${m.name}: подробнее`}><ModelArt m={m} uid={"o-" + o.id + id} sizes="64px" /></Link>
-            <div><b>{m.name}</b><span>{m.slug}_{o.id} · {zipMb(m)} МБ</span></div>
-            <button type="button" className="download-button" disabled={blocked || busy === o.id + id} aria-label={`Скачать «${m.name}»`} onClick={() => download(o, id)}>
-              <Download size={16} /><span>{busy === o.id + id ? "Готовим…" : "Скачать"}</span></button>
+            <div><b>{m.name}</b><span>{files.length > 1 ? `${files.length} файла · ${m.mb} МБ` : `${m.slug}_${o.id} · ${m.mb} МБ`}</span></div>
+            {files.length > 1 ? <div className="file-downloads">
+              {files.map(f => <div key={f.id} className="file-dl"><span>{f.name}<small>{f.mb} МБ</small></span>{btn(f, "Скачать")}</div>)}
+            </div> : btn(files[0], "Скачать")}
           </div>
         );
       })}

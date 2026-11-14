@@ -1234,3 +1234,16 @@ body { background: var(--bg); }
 /* шапка: пункты меню не переносятся на две строки */
 .main-nav a, .header-link { white-space: nowrap; }
 @media (max-width: 1100px) and (min-width: 821px) { .main-nav { gap: 14px; } .main-nav a { font-size: 13px; } }
+
+/* несколько файлов у модели */
+.file-list { display: grid; gap: 6px; }
+.file-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.file-row input { width: 100%; min-width: 0; padding: 6px 9px; font-size: 13px; }
+.file-tools { display: flex; gap: 4px; }
+.mini-btn.disabled { opacity: .45; pointer-events: none; }
+.library-item.multi { flex-wrap: wrap; }
+.file-downloads { flex: 1 1 100%; display: grid; gap: 6px; padding-left: 78px; }
+.file-dl { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line-2); }
+.file-dl span { display: grid; font-size: 13px; overflow-wrap: anywhere; }
+.file-dl small { color: var(--faint); font-size: 11px; }
+@media (max-width: 640px) { .file-downloads { padding-left: 0; } }

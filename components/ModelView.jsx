@@ -83,7 +83,8 @@ export default function ModelView({ initial }) {
           {m.desc && <p>{m.desc}</p>}
 
           <dl className="detail-specs">
-            <div className="detail-spec"><dt>Формат файла</dt><dd>STL · {m.mb} МБ</dd></div>
+            <div className="detail-spec"><dt>{(m.files || []).length > 1 ? `Файлы · ${m.files.length}` : "Формат файла"}</dt>
+              <dd>{(m.files || []).length > 1 ? m.files.map(f => f.name).join(", ") + ` · ${m.mb} МБ` : `STL · ${m.mb} МБ`}</dd></div>
             <div className="detail-spec"><dt>Архив для скачивания</dt><dd>ZIP ≈ {zipMb(m)} МБ</dd></div>
             {m.dims && <div className="detail-spec"><dt>Размер после печати</dt><dd>{m.dims}</dd></div>}
             {m.print && <div className="detail-spec"><dt>Печать</dt><dd>{m.print}</dd></div>}

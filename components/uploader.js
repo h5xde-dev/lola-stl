@@ -34,7 +34,7 @@ const memoKey = (model, f) => `lola-upload:${model}:${f.name}:${f.size}:${f.last
 // Возвращает { promise, cancel }. onProgress(loadedBytes, totalBytes)
 export function uploadModelFile({ file, modelId, storage, onProgress }) {
   const ctl = { xhrs: new Set(), cancelled: false, state: null };
-  const ext = /\.zip$/i.test(file.name) ? "zip" : "stl";
+  const ext = (file.name.match(/\.(zip|stl|3mf|obj)$/i)?.[1] || "stl").toLowerCase();
 
   const promise = (async () => {
     if (storage !== "s3") {

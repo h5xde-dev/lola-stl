@@ -7,6 +7,7 @@ import { mailProvider } from "@/lib/server/notify";
 import { deleteFile, s3Configured } from "@/lib/server/storage";
 import { mergeCompany, mergeHome, mergeSeo } from "@/lib/content";
 import { mergePayments, PAY_METHODS } from "@/lib/payments";
+import { modelFiles } from "@/lib/models";
 import { yookassaReady } from "@/lib/server/pay";
 
 export const dynamic = "force-dynamic";
@@ -38,11 +39,13 @@ export const PUT = wrap(async req => {
   if (Array.isArray(b.models)) {
     // Модель получила новый файл — старый удаляем из хранилища. Файлы удалённых моделей остаются:
     // те, кто их купил, сохраняют доступ.
+    // Файлы, которые убрали или заменили у живой модели, удаляем из хранилища.
+    // Файлы удалённых моделей остаются: те, кто их купил, сохраняют доступ.
     const before = await R.getModelsAll();
     await R.saveModels(b.models);
-    const used = new Set(b.models.map(m => m.fileKey).filter(Boolean));
-    const replaced = before.filter(o => o.fileKey && !used.has(o.fileKey) && b.models.some(m => m.id === o.id && !m.deleted && m.fileKey && m.fileKey !== o.fileKey));
-    await Promise.all(replaced.map(o => deleteFile(o.fileKey)));
+    const used = new Set(b.models.flatMap(m => modelFiles(m).map(f => f.key)));
+    const gone = before.filter(o => b.models.some(m => m.id === o.id && !m.deleted)).flatMap(o => modelFiles(o).map(f => f.key)).filter(k => !used.has(k));
+    await Promise.all(gone.map(k => deleteFile(k)));
   }
   if (Array.isArray(b.promoCodes)) await R.savePromoCodes(b.promoCodes);
   if (Array.isArray(b.bundles)) await R.saveBundles(b.bundles);

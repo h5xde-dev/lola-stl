@@ -6,7 +6,7 @@ const MAX = 5 * 1024 ** 3; // 5 ГБ на файл
 
 const fileKey = (model, ext) => `models/${model}-${Date.now().toString(36)}.${ext}`;
 const clean = s => String(s || "").replace(/[^a-z0-9_-]/gi, "");
-const extOf = s => (String(s || "").toLowerCase() === "zip" ? "zip" : "stl");
+const extOf = s => (["zip", "stl", "3mf", "obj"].includes(String(s || "").toLowerCase()) ? String(s).toLowerCase() : "stl");
 
 // Загрузка STL/ZIP модели из админки.
 // С S3 — частями напрямую в хранилище (JSON: start / resume / complete / abort).

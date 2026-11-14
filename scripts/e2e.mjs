@@ -176,3 +176,15 @@ const fo = await j(r);
 ok(r.status === 200 && fo.total === 0 && fo.url.includes("/checkout/return"), "бесплатный заказ оформляется без оплаты");
 me = await j(await F.f("/api/me"));
 ok(me.orders[0]?.status === "paid" && me.orders[0].items.includes("p05"), "бесплатная модель сразу в личном кабинете");
+
+// несколько файлов у модели: каждый скачивается отдельно, ключи хранилища не видны на сайте
+as = await j(await adm.f("/api/admin/state"));
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: as.models.map(m => m.id === "p05" ? { ...m, fileKey: undefined,
+  files: [{ id: "fa", key: "models/p05-a.stl", name: "Кашпо.stl", mb: 10 }, { id: "fb", key: "models/p05-b.stl", name: "Поддон.stl", mb: 5 }], mb: 15 } : m) }) });
+const pub = await (await jar().f("/models/romashki")).text();
+ok(pub.includes("Поддон.stl") && !pub.includes("models/p05-b.stl"), "на странице модели видны файлы, но не ключи хранилища");
+r = await F.f("/api/download", { method: "POST", body: JSON.stringify({ order: fo.code, model: "p05", file: "fb" }) });
+dl = await j(r);
+const fb = await F.f(dl.url);
+ok(r.status === 200 && /romashki_L-\d+_Поддон\.stl/.test(decodeURIComponent(fb.headers.get("content-disposition"))), "второй файл модели скачивается со своим именем");
+ok((await F.f("/api/download", { method: "POST", body: JSON.stringify({ order: fo.code, model: "p05", file: "nope" }) })).status === 404, "несуществующий файл — 404");

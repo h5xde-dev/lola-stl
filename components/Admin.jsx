@@ -9,7 +9,7 @@ import { api, useStore } from "./Store";
 import { uploadModelFile } from "./uploader";
 import { uploadImage } from "./media";
 import { SeoFields } from "./AdminContent";
-import { categoryHref, kindName, slugify } from "@/lib/models";
+import { categoryHref, filesMb, kindName, modelFiles, slugify } from "@/lib/models";
 import { listPrice, paidPrice, plantQuote, quote, today } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
 
@@ -125,7 +125,7 @@ export function AdminModels() {
               <td><div className="thumb"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
               <td><b>{m.name}</b>{m.free && <> <span className="tag test">бесплатно</span></>}{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
               <td>{kindName(m, cats)}</td>
-              <td className="r mono">{m.mb ? m.mb + " МБ" : "нет файла"}</td>
+              <td className="r mono">{m.mb ? m.mb + " МБ" : "нет файла"}{modelFiles(m).length > 1 && <div className="meta">файлов: {modelFiles(m).length}</div>}</td>
               <td className="r">{sales[m.id] || 0}</td>
               <td><label className="switch" title={m.mb ? "" : "Сначала загрузите STL-файл"}>
                 <input type="checkbox" checked={!m.hidden} disabled={!m.mb} onChange={e => pub(m, e.target.checked)} aria-label={`Показывать «${m.name}» в каталоге`} /><span className="track" /></label></td>
@@ -156,22 +156,39 @@ export function AdminEditor({ id }) {
   const hasPh = d.photos && d.photos.length;
 
   // Загрузка STL/ZIP любого размера: частями прямо в хранилище (S3) или потоком на сервер.
-  const startUpload = f => {
-    if (!f) return;
+  // Файлы модели: несколько STL/ZIP (сет, бокс из частей). Каждый грузится частями прямо в хранилище (S3)
+  // или потоком на сервер. Можно выбрать сразу несколько — они загрузятся по очереди.
+  const files = modelFiles(d);
+  const setFiles = list => upd({ files: list, mb: filesMb(list), fileKey: undefined, file: undefined });
+  const uploadOne = (f, replaceId) => new Promise(resolve => {
     const t0 = Date.now();
-    setUpload({ total: f.size / 1048576, done: 0, speed: 0 });
+    setUpload({ name: f.name, total: f.size / 1048576, done: 0, speed: 0 });
     const job = uploadModelFile({ file: f, modelId: d.id, storage: admin?.services?.storage,
       onProgress: (loaded, total) => setUpload(u => u && { ...u, total: total / 1048576, done: loaded / 1048576, speed: loaded / 1048576 / Math.max(1, (Date.now() - t0) / 1000) }) });
     uploadJob.current = job;
     job.promise.then(r => {
-      setUpload(null);
-      upd({ fileKey: r.key, mb: Math.max(1, Math.round((r.size || f.size) / 1048576)), file: f.name });
-      toast("Файл загружен. Нажмите «Сохранить», чтобы модель получила новый файл.");
+      const mb = Math.max(1, Math.round((r.size || f.size) / 1048576));
+      setD(p => {
+        const cur = modelFiles(p);
+        const list = replaceId ? cur.map(x => (x.id === replaceId ? { ...x, key: r.key, mb, name: x.name || f.name } : x))
+          : [...cur, { id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: r.key, name: f.name, mb }];
+        return { ...p, files: list, mb: filesMb(list), fileKey: undefined, file: undefined };
+      });
+      resolve(true);
     }).catch(e => {
-      setUpload(null);
       if (!e.aborted) toast(e.message === "network" ? "Связь оборвалась. Выберите тот же файл ещё раз — загрузка продолжится." : e.message);
+      resolve(false);
     }).finally(() => { uploadJob.current = null; });
+  });
+  const startUpload = async (list, replaceId) => {
+    const arr = Array.from(list || []);
+    if (!arr.length) return;
+    let ok = 0;
+    for (const f of arr) { if (await uploadOne(f, replaceId)) ok++; else break; }
+    setUpload(null);
+    if (ok) toast(ok > 1 ? `Загружено файлов: ${ok}. Нажмите «Сохранить».` : "Файл загружен. Нажмите «Сохранить», чтобы модель получила его.");
   };
+  const moveFile = (i, dir) => { const l = [...files], j = i + dir; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; setFiles(l); };
   // Фото загружаются на сервер (до 1600 px) и показываются на сайте в сжатом виде через next/image
   const [phBusy, setPhBusy] = useState(0);
   const addPhotos = async files => {
@@ -248,9 +265,25 @@ export function AdminEditor({ id }) {
             <div className="f"><label htmlFor="fTags">Метки для поиска</label><input type="text" id="fTags" value={(d.tags || []).join(", ")} placeholder="щупальца, рассада" onChange={e => upd({ tags: e.target.value.split(",").map(t => t.trim().toLowerCase()).filter(Boolean) })} /><small>Через запятую. Ищутся в каталоге и попадают в описание для поисковиков.</small></div>
             <div className="f"><label htmlFor="fSlug">Адрес страницы</label><input type="text" id="fSlug" value={d.slug} placeholder={slugify(d.name || "model")} onChange={e => upd({ slug: slugify(e.target.value) })} /><small>/models/{d.slug || slugify(d.name || "model")}</small></div>
           </div>
-          <div className="f"><span className="lbl">STL-файл</span>
+          <div className="f"><span className="lbl">Файлы модели{files.length ? ` · ${files.length} · ${filesMb(files)} МБ` : ""}</span>
+            {files.length > 0 && <div className="file-list">
+              {files.map((f, i) => (
+                <div className="file-row" key={f.id}>
+                  <input type="text" aria-label={`Название файла ${i + 1}`} value={f.name} onChange={e => setFiles(files.map(x => (x.id === f.id ? { ...x, name: e.target.value } : x)))} />
+                  <span className="mono meta">{f.mb} МБ</span>
+                  <span className="file-tools">
+                    <button type="button" className="mini-btn" disabled={!!upload || !i} aria-label="Выше" onClick={() => moveFile(i, -1)}><ArrowUp size={13} /></button>
+                    <button type="button" className="mini-btn" disabled={!!upload || i === files.length - 1} aria-label="Ниже" onClick={() => moveFile(i, 1)}><ArrowDown size={13} /></button>
+                    <label className={"mini-btn" + (upload ? " disabled" : "")} htmlFor={"rep-" + f.id}>Заменить</label>
+                    <input type="file" id={"rep-" + f.id} accept=".stl,.zip,.3mf,.obj" hidden disabled={!!upload} onChange={e => { startUpload(e.target.files, f.id); e.target.value = ""; }} />
+                    <button type="button" className="mini-btn" disabled={!!upload} aria-label={`Убрать файл ${f.name}`} onClick={() => setFiles(files.filter(x => x.id !== f.id))}>×</button>
+                  </span>
+                </div>
+              ))}
+            </div>}
             <div className="drop">
               {upload ? <>
+                <span className="mono" style={{ fontSize: 12, color: "var(--ink)" }}>{upload.name}</span>
                 <div className="prog"><i style={{ width: Math.round(upload.done / Math.max(upload.total, .001) * 100) + "%" }} /></div>
                 <span className="mono" style={{ fontSize: 12, color: "var(--ink)" }}>
                   {Math.round(upload.done)} из {Math.round(upload.total)} МБ · {upload.speed ? upload.speed.toFixed(1) + " МБ/с" : "…"}
@@ -258,11 +291,10 @@ export function AdminEditor({ id }) {
                 <small>{admin?.services?.storage === "s3" ? "Файл уходит частями прямо в хранилище. Если связь оборвётся или вкладку закроют, выберите тот же файл ещё раз — загрузка продолжится." : "Не закрывайте страницу до конца загрузки."}</small>
                 <button type="button" className="mini-btn" onClick={() => uploadJob.current?.cancel()}>Отменить загрузку</button>
               </> : <>
-                {d.mb ? <><span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{d.file || (d.slug || "model") + ".stl"} · {d.mb} МБ</span><span>Покупатель получит ZIP ≈ {zipMb(d)} МБ.</span></>
-                  : <span>Файл не загружен. Без файла модель нельзя показать в каталоге.</span>}
-                <label className="mini-btn" htmlFor="stlIn">{d.mb ? "Заменить файл" : "Выбрать STL или ZIP"}</label>
-                <input type="file" id="stlIn" accept=".stl,.zip" hidden onChange={e => { startUpload(e.target.files?.[0]); e.target.value = ""; }} />
-                <small>{admin?.services?.storage === "s3" ? "STL или ZIP до 5 ГБ: загружается частями напрямую в закрытое хранилище." : "Хранилище S3 не подключено: файл до 5 ГБ сохраняется на диск сервера сайта."}</small>
+                {!files.length && <span>Файлы не загружены. Без файла модель нельзя показать в каталоге.</span>}
+                <label className="mini-btn" htmlFor="stlIn">{files.length ? "Добавить файлы" : "Выбрать файлы"}</label>
+                <input type="file" id="stlIn" accept=".stl,.zip,.3mf,.obj" multiple hidden onChange={e => { startUpload(e.target.files); e.target.value = ""; }} />
+                <small>Можно выбрать сразу несколько: части сета или бокса. Покупатель скачает каждый файл отдельно. {admin?.services?.storage === "s3" ? "До 5 ГБ на файл, частями напрямую в закрытое хранилище." : "До 5 ГБ на файл, сохраняется на диск сервера сайта."}</small>
               </>}
             </div></div>
           <SeoFields title={d.seoTitle} desc={d.seoDesc} onChange={upd} idp="m"
