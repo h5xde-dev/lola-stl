@@ -13,7 +13,7 @@ export const metadata = { title: "Чек", robots: { index: false, follow: false
 
 const fmt = d => new Date(d).toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-// Чек заказа: позиции, скидка, оплата и фискальные данные кассового чека ЮKassa.
+// Чек заказа: позиции, скидка, оплата и фискальные данные кассового чека (если провайдер их отдаёт).
 // Открывается по той же личной ссылке, что и заказ; его можно распечатать или сохранить в PDF.
 export default async function Receipt({ params }) {
   const { token } = await params;
@@ -31,7 +31,8 @@ export default async function Receipt({ params }) {
       <section className="receipt" aria-label={`Чек заказа ${code}`}>
         <header>
           <b>lola.stl</b>
-          <span>{companyLine(company)}</span>
+          {companyLine(company) && <span>{companyLine(company)}</span>}
+          {company.address && <span>{company.address}</span>}
           {company.email && <span>{company.email}{company.phone ? " · " + company.phone : ""}</span>}
         </header>
         <h1>Чек заказа {code}</h1>
@@ -61,7 +62,7 @@ export default async function Receipt({ params }) {
             <div><dt>ФП</dt><dd>{fiscal.fp}</dd></div>
             {fiscal.at && <div><dt>Зарегистрирован</dt><dd>{fmt(fiscal.at)}</dd></div>}
           </dl>
-        ) : <p className="receipt-note">Кассовый чек отправлен на {o.email || "ваш email"} письмом от ЮKassa.</p>}
+        ) : <p className="receipt-note">Кассовый чек отправлен на {o.email || "ваш email"} письмом от онлайн-кассы.</p>}
       </section>
     </div>
   );

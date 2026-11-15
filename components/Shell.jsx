@@ -7,6 +7,8 @@ import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useServerQuote, useStore } from "./Store";
 import Effects from "./Effects";
 import TelegramBridge from "./TelegramBridge";
+import PayLogos from "./PayLogos";
+import CookieNote from "./CookieNote";
 import { fmtDay, models, rub } from "@/lib/format";
 import { categoryHref } from "@/lib/models";
 
@@ -34,7 +36,7 @@ function ProtoBar({ demo }) {
         </div>
         <Link href="/admin" className="link-btn" style={{ color: "var(--ink)", fontWeight: 700 }}>Открыть админку</Link>
         <button type="button" className="link-btn" onClick={reset}>Очистить корзину</button>
-        <span className="proto-note">Акцию «1+1» включают в админке. Без ключей ЮKassa оплата тестовая.</span>
+        <span className="proto-note">Акцию «1+1» включают в админке. Без ключей эквайринга оплата тестовая.</span>
       </div>
     </div>
   );
@@ -120,11 +122,16 @@ export default function Shell({ children, demo = true }) {
             <div className="wrap footer-in">
               <Brand sub="" />
               <p>Файлы, которые превращаются в вещи.</p>
-              <div className="footer-links"><Link href="/">Каталог</Link>{s.hasArticles && <Link href="/blog">Статьи</Link>}<Link href="/account">Личный кабинет</Link></div>
-              <small>© {new Date().getFullYear()} lola.stl · {companyLine(s.company || {})}{s.company?.email ? " · " + s.company.email : ""} · Оферта и лицензия · Политика обработки данных</small>
+              <div className="footer-links"><Link href="/">Каталог</Link>{s.hasArticles && <Link href="/blog">Статьи</Link>}<Link href="/account">Личный кабинет</Link><Link href="/contacts">Контакты</Link></div>
+              <nav className="footer-legal" aria-label="Документы">
+                <Link href="/offer">Оферта и лицензия</Link><Link href="/privacy">Политика конфиденциальности</Link><Link href="/payment">Оплата и безопасность</Link><Link href="/delivery">Получение заказа</Link><Link href="/refund">Возврат</Link>
+              </nav>
+              <PayLogos small />
+              <small className="footer-req">© {new Date().getFullYear()} lola.stl{companyLine(s.company || {}) ? " · " + companyLine(s.company || {}) : ""}{s.company?.address ? " · " + s.company.address : ""}{s.company?.email ? " · " + s.company.email : ""}{s.company?.phone ? " · " + s.company.phone : ""}</small>
             </div>
           </footer>
           {!adm && <TgMainButton />}
+          {!adm && <CookieNote />}
         </div>
       </div>
       <div className={"toast" + (toastMsg.on ? " on" : "")} role="status" aria-live="polite">{toastMsg.text}</div>

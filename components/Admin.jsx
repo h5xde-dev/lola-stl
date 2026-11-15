@@ -9,6 +9,7 @@ import { api, useStore } from "./Store";
 import { uploadModelFile } from "./uploader";
 import { uploadImage } from "./media";
 import { SeoFields } from "./AdminContent";
+import { companyMissing } from "@/lib/content";
 import { categoryHref, filesMb, kindName, modelFiles, slugify } from "@/lib/models";
 import { listPrice, paidPrice, plantQuote, quote, today } from "@/lib/pricing";
 import { fmtDay, fmtSize, models, rub, zipMb } from "@/lib/format";
@@ -81,7 +82,7 @@ export function AdminShell({ children }) {
           {link("/admin/analytics", ChartColumn, "Аналитика", "", "analytics")}
           {link("/admin/home", House, "Главная", "", "home")}
           {link("/admin/articles", Newspaper, "Статьи", (s.articles || []).filter(a => !a.deleted && a.published).length, "articles")}
-          {link("/admin/seo", Search, "SEO и реквизиты", "", "seo")}
+          {link("/admin/seo", Search, "SEO и реквизиты", companyMissing(s.company || {}).length ? "!" : "", "seo")}
           {link("/admin/outbox", Mail, "Письма", "", "outbox")}
         </nav>
         <div className={"save-state " + save} role="status">
@@ -90,7 +91,10 @@ export function AdminShell({ children }) {
         <button type="button" className="back-store" style={{ border: 0, background: "none", cursor: "pointer", marginTop: 8 }} onClick={async () => { await api("/api/admin/logout", { method: "POST" }); location.reload(); }}><LogOut size={14} /> Выйти</button>
         <Link href="/" className="back-store" style={{ marginTop: 8 }}><ArrowLeft size={14} /> На сайт</Link>
       </aside>
-      <section className="admin-main">{children}</section>
+      <section className="admin-main">
+        {tab !== "seo" && companyMissing(s.company || {}).length > 0 && <div className="adm-banner">Для подключения эквайринга заполните реквизиты продавца: {companyMissing(s.company || {}).join(", ")}. <Link href="/admin/seo#company">Заполнить</Link></div>}
+        {children}
+      </section>
     </div>
   );
 }
@@ -409,7 +413,7 @@ const ORDER_ST = { paid: ["Оплачен", ""], review: ["Оплачен", ""],
 
 export function AdminOrders() {
   const { s, byId, toast, loadAdmin, admin } = useStore();
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useState(null), [refund, setRefund] = useState(null), [busy, setBusy] = useState(false);
   const os = s.orders.slice().sort((a, b) => b.date - a.date);
   const rev = os.filter(o => o.status !== "refunded" && !o.test).reduce((a, o) => a + o.total, 0), tg = os.filter(o => o.ch === "tg").length;
   const nm = id => byId[id] ? byId[id].name : id;
@@ -456,20 +460,25 @@ export function AdminOrders() {
                   {(o.log || []).length ? <ul className="od-log">{o.log.slice(-8).reverse().map((e, i) => (
                     <li key={i}><span className="mono">{new Date(e.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> · {nm(e.id)} · {e.ip}<div className="meta">{e.ua}</div></li>))}</ul>
                     : <p className="meta">Ещё не скачивали.</p>}
+                  {o.consents && <p className="meta" style={{ marginTop: 8 }}>Согласия при оформлении: оферта и обработка данных · {new Date(o.consents.at).toLocaleString("ru-RU")} · IP {o.consents.ip}</p>}
                   <div className="actions" style={{ marginTop: 10 }}>
                     {o.link && <a href={o.link} target="_blank" rel="noopener" className="mini-btn">Ссылка на заказ</a>}
-                    {o.status === "revoked"
+                    {o.status === "refunded" ? null : o.status === "revoked"
                       ? <button type="button" className="mini-btn" onClick={() => act(o.id, "open", "Доступ открыт")}>Открыть доступ</button>
                       : <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => act(o.id, "revoke", "Доступ к файлам закрыт")}>Закрыть доступ</button>}
                     <button type="button" className="mini-btn" onClick={() => act(o.id, "resend", "Ссылка на заказ отправлена покупателю")}>Отправить ссылку на заказ</button>
+                    {o.status !== "refunded" && o.total > 0 && refund !== o.id && <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => setRefund(o.id)}>Вернуть деньги</button>}
                   </div>
+                  {refund === o.id && <div className="confirm"><span>Вернуть покупателю {rub(o.total)}{o.test ? " (тестовый заказ — деньги не списывались)" : ""} и закрыть доступ к файлам? Отменить возврат будет нельзя.</span>
+                    <button type="button" className="btn danger" disabled={busy} onClick={async () => { setBusy(true); await act(o.id, "refund", "Возврат оформлен, покупателю отправлено письмо"); setBusy(false); setRefund(null); }}>{busy ? "Оформляем…" : "Вернуть"}</button>
+                    <button type="button" className="btn" onClick={() => setRefund(null)}>Не возвращать</button></div>}
                 </div>
               </div>
             </td></tr>,
           ];
         })}</tbody>
       </table></div>}
-      <p className="note">Чеки формирует онлайн-касса сразу после оплаты. Сумма в чеке разложена по моделям: подарочные тоже получают долю, поэтому частичный возврат считается точно.</p>
+      <p className="note">Чеки формирует онлайн-касса сразу после оплаты. Сумма в чеке разложена по моделям: подарочные тоже получают долю. «Вернуть деньги» возвращает всю сумму заказа через банк и закрывает доступ к файлам; чек возврата касса пришлёт покупателю сама.</p>
     </>
   );
 }
@@ -753,7 +762,7 @@ export function AdminOutbox() {
       <div className="adm-h"><div><Eyebrow /><h1>Письма</h1></div></div>
       <section className="panel"><h2>Подключённые сервисы</h2>
         <div className="svc-grid">
-          {[["Оплата", sv.yookassa ? "ЮKassa" : "ЮKassa не подключена", sv.yookassa],
+          {[["Оплата", sv.payProvider === "tochka" ? "Точка Банк" : sv.payProvider === "yookassa" ? "ЮKassa" : "не подключена", !!sv.payProvider],
             ["Почта", sv.mail === "unisender" ? "Unisender Go" : sv.mail === "unisender-classic" ? "Unisender" : sv.mail === "smtp" ? "SMTP" : "только журнал", sv.mail !== "journal"],
             ["Файлы", sv.storage === "s3" ? "S3-хранилище" : "папка на сервере", sv.storage === "s3"],
             ["Telegram-бот", sv.telegram ? "подключён" : "нет токена", sv.telegram],

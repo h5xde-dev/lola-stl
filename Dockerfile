@@ -21,6 +21,12 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 \
     NODE_OPTIONS=--max-old-space-size=320 \
     # Обработка фото в один поток — без всплесков памяти
     VIPS_CONCURRENCY=1
+# Сертификаты Минцифры (Russian Trusted Root/Sub CA): на них работает API Точка Банка (enter.tochka.com).
+# Файлы скачаны с официальной страницы gu-st.ru (ссылки из документации Точки). Node.js не читает
+# системное хранилище, поэтому путь к нему передаётся через NODE_EXTRA_CA_CERTS.
+COPY deploy/certs/russian_trusted_root_ca.crt deploy/certs/russian_trusted_sub_ca.crt /usr/local/share/ca-certificates/
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 RUN addgroup -S app && adduser -S app -G app && mkdir -p /app/.data && chown app:app /app/.data
 COPY --from=build /app/public ./public
 COPY --from=build --chown=app:app /app/.next/standalone ./

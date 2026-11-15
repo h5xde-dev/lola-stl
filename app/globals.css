@@ -1247,3 +1247,35 @@ body { background: var(--bg); }
 .file-dl span { display: grid; font-size: 13px; overflow-wrap: anywhere; }
 .file-dl small { color: var(--faint); font-size: 11px; }
 @media (max-width: 640px) { .file-downloads { padding-left: 0; } }
+
+/* ---------- документы магазина: оферта, политика, оплата, возврат, контакты ---------- */
+.legal-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 26px; }
+.legal-nav a { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted); }
+.legal-nav a:hover { color: var(--ink); border-color: var(--ink-2); }
+.legal-nav a[aria-current="page"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.legal-doc h1 { margin: 0 0 18px; font: 500 clamp(28px, 5vw, 40px)/1.15 var(--f-display); letter-spacing: -.01em; }
+.legal-doc .article-body { font-size: 16px; line-height: 1.7; }
+.legal-doc .article-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.legal-date { color: var(--faint); font-size: 13px; margin-top: 28px; }
+.pay-logos { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; padding: 0; }
+.pay-logo { display: grid; place-items: center; min-width: 58px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink-2); font: 700 12px/1 var(--f-body); letter-spacing: .04em; }
+.pay-logo.mir { color: #4db45e; } .pay-logo.visa { color: #8fa8ff; font-style: italic; } .pay-logo.mc { color: #ffb05c; letter-spacing: 0; } .pay-logo.sbp { color: #c49bff; }
+.pay-logos.small { margin: 0; gap: 6px; } .pay-logos.small .pay-logo { min-width: 0; height: 24px; font-size: 10.5px; padding: 0 8px; }
+.footer-legal { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); }
+.footer-legal a:hover, .footer-req a:hover { color: var(--accent); }
+.footer-in > .pay-logos { grid-column: 1 / -1; }
+.footer-in > small.footer-req { line-height: 1.6; }
+.cookie-note { position: fixed; z-index: 40; left: 16px; right: 16px; bottom: 16px; max-width: 560px; margin-inline: auto; display: flex; gap: 14px; align-items: center; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 13px; color: var(--ink-2); }
+.cookie-note p { margin: 0; flex: 1; }
+.cookie-note a { color: var(--accent); text-decoration: underline; }
+.cookie-note .button { flex: none; padding: 9px 16px; }
+.checkout-form .check-row a, .terms-note a, .secure-note a, .detail-spec dd a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.adm-banner { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--danger); color: var(--ink-2); font-size: 13px; }
+.adm-banner a { color: var(--accent); text-decoration: underline; margin-left: 6px; }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 18px; margin: 14px 0; }
+.kv dt { color: var(--faint); font-size: 12px; } .kv dd { margin: 2px 0 0; font-size: 14px; word-break: break-word; }
+.steps-list { margin: 12px 0; padding-left: 20px; color: var(--ink-2); font-size: 14px; line-height: 1.6; } .steps-list li { margin: 6px 0; }
+@media (max-width: 640px) {
+  .cookie-note { flex-direction: column; align-items: stretch; left: 12px; right: 12px; bottom: 12px; }
+  .tg .cookie-note { display: none; }
+}

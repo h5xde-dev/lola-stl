@@ -70,7 +70,7 @@ export function StoreProvider({ initial, children }) {
     const { ok, status, data } = await api("/api/admin/state");
     if (!ok) return status;
     setS(p => ({ ...p, ...Object.fromEntries(CATALOG.map(k => [k, data[k]])), orders: data.orders }));
-    setAdmin({ services: data.services, pendingOrders: data.pendingOrders, testOrders: data.testOrders, loadedAt: Date.now() });
+    setAdmin({ services: data.services, tochka: data.tochka, pendingOrders: data.pendingOrders, testOrders: data.testOrders, loadedAt: Date.now() });
     return 200;
   }, []);
 

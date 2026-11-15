@@ -7,7 +7,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const safeUrl = u => (/^(\/(?!\/)|https?:\/\/)/.test(u) ? u : null);
+const safeUrl = u => (/^(\/(?!\/)|https?:\/\/|mailto:)/.test(u) ? u : null);
 
 function inline(text, key = "i") {
   const out = [];

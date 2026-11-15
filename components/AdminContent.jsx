@@ -8,10 +8,10 @@ import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, ImagePlus, Plus, Trash2, T
 import { api, useStore } from "./Store";
 import { listImages, uploadImage } from "./media";
 import { slugify } from "@/lib/models";
-import { DEFAULT_HOME, mergeHome } from "@/lib/content";
+import { companyMissing, DEFAULT_HOME, innOk, mergeHome, ogrnipOk } from "@/lib/content";
 import { Markdown, plainText } from "@/lib/md";
 import { rub } from "@/lib/format";
-import { mergePayments, PAY_METHODS } from "@/lib/payments";
+import { mergePayments, methodFor, PAY_METHODS } from "@/lib/payments";
 
 const Eyebrow = ({ t = "Магазин · управление" }) => <span className="eyebrow">{t}</span>;
 const todayIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow" }).format(new Date());
@@ -162,7 +162,8 @@ export function AdminSeo() {
         : <input id={"seo" + k} type="text" value={seo[k] || ""} placeholder={opts.ph} onChange={e => upd({ [k]: e.target.value })} />}
       {opts.hint && <small>{opts.hint}</small>}</div>
   );
-  const c = (k, label, ph) => <div className="f"><label htmlFor={"co" + k}>{label}</label><input id={"co" + k} type="text" value={co[k] || ""} placeholder={ph} onChange={e => updC({ [k]: e.target.value })} /></div>;
+  const c = (k, label, ph, hint) => <div className="f"><label htmlFor={"co" + k}>{label}</label><input id={"co" + k} type="text" value={co[k] || ""} placeholder={ph} onChange={e => updC({ [k]: e.target.value })} />{hint && <small>{hint}</small>}</div>;
+  const miss = companyMissing(co);
   const host = typeof location !== "undefined" ? location.host : "";
   return (
     <>
@@ -189,12 +190,15 @@ export function AdminSeo() {
           {f("google", "Код Google Search Console", { ph: "из мета-тега google-site-verification" })}
         </div>
         {f("sameAs", "Ссылки на соцсети магазина", { ph: "https://t.me/lola_stl, https://vk.com/lola_stl", hint: "Через запятую. Попадают в разметку организации — поисковики связывают их с сайтом." })}
-        <p className="panel-sub">Индексация включается переменной INDEXING=on на сервере, когда будут заполнены реквизиты и оферта.</p>
+        <p className="panel-sub">Индексация включается переменной INDEXING=on на сервере, когда будут заполнены реквизиты (документы — оферта, политика, оплата, возврат — уже на сайте).</p>
       </section>
-      <section className="panel"><h2>Реквизиты продавца</h2>
-        <p className="panel-sub">Показываются в подвале сайта и в чеках покупателей.</p>
-        <div className="fgrid">{c("name", "Продавец", "ИП Иванова Анна Сергеевна")}{c("inn", "ИНН", "123456789012")}{c("ogrn", "ОГРНИП", "")}</div>
-        <div className="fgrid">{c("email", "Email для покупателей", "shop@greennessx.ru")}{c("phone", "Телефон", "")}</div>
+      <section className="panel" id="company"><h2>Реквизиты продавца</h2>
+        <p className="panel-sub">Банк проверяет их на сайте перед подключением эквайринга. Показываются в подвале, на страницах «Контакты», «Оферта», «Политика обработки данных» и в чеках.</p>
+        {miss.length > 0 && <p className="err">Для эквайринга заполните: {miss.join(", ")}.</p>}
+        <div className="fgrid">{c("name", "Продавец", "ИП Иванова Анна Сергеевна", "Как в выписке ЕГРИП: «ИП» и ФИО полностью")}{c("inn", "ИНН", "12 цифр", co.inn && !innOk(co.inn) ? "ИНН не проходит проверку — проверьте цифры" : "")}{c("ogrn", "ОГРНИП", "15 цифр", co.ogrn && !ogrnipOk(co.ogrn) ? "ОГРНИП не проходит проверку — проверьте цифры" : "")}</div>
+        {c("address", "Адрес", "Москва, ул. Примерная, д. 1, кв. 1", "Адрес регистрации ИП из выписки ЕГРИП. Банки чаще всего требуют полный адрес.")}
+        <div className="fgrid">{c("email", "Email для покупателей", "shop@greennessx.ru")}{c("phone", "Телефон", "+7 900 000-00-00")}{c("telegram", "Telegram для связи", "@lola_stl")}</div>
+        {c("hours", "Когда отвечаете", "Ежедневно с 10:00 до 20:00 по Москве, ответ в течение суток")}
       </section>
     </>
   );
@@ -469,11 +473,14 @@ export function AdminAnalytics() {
 export function AdminPayments() {
   const { s, set, admin, toast, loadAdmin } = useStore();
   const p = mergePayments(s.payments);
-  const ready = !!admin?.services?.yookassa;
+  const sv = admin?.services || {};
+  const prov = sv.payProvider || null; // "tochka" | "yookassa" | null
+  const t = admin?.tochka || null;
   const upd = patch => set(x => ({ payments: { ...mergePayments(x.payments), ...patch } }));
-  const [cleaning, setCleaning] = useState(false), [confirm, setConfirm] = useState(false);
-  const real = PAY_METHODS.filter(m => !m.test);
-  const onCount = real.filter(m => p[m.id]).length;
+  const [cleaning, setCleaning] = useState(false), [confirm, setConfirm] = useState(false), [busy, setBusy] = useState("");
+  const real = PAY_METHODS.filter(m => !m.test && methodFor(m, prov || "tochka"));
+  const supported = m => !t?.modes?.length || prov !== "tochka" || t.modes.includes(m.tochka);
+  const onCount = real.filter(m => p[m.id] && supported(m)).length;
   const testN = admin?.testOrders || 0;
   const clean = async () => {
     setCleaning(true);
@@ -481,22 +488,60 @@ export function AdminPayments() {
     setCleaning(false); setConfirm(false);
     if (ok) { toast(`Удалено тестовых заказов: ${data.deleted}`); loadAdmin(); } else toast(data.error || "Не получилось удалить");
   };
+  const tochka = async action => {
+    setBusy(action);
+    const { ok, data } = await api("/api/admin/tochka", { method: "POST", body: JSON.stringify({ action }) });
+    setBusy("");
+    if (ok) { toast(action === "webhook" ? "Уведомления об оплате подключены" : "Соединение с Точкой работает"); loadAdmin(); }
+    else toast(data.error || "Не получилось", 6000);
+  };
+  const MODE = { sbp: "СБП", card: "карты", tinkoff: "T-Pay", dolyame: "Долями" };
   return (
     <>
       <div className="adm-h"><div><Eyebrow /><h1>Оплата</h1></div></div>
+      <section className="panel"><h2>Интернет-эквайринг Точки</h2>
+        {!sv.tochka ? <>
+          <div className="svc-line">{prov === "yookassa" ? "Сейчас оплата идёт через ЮKassa. " : ""}Точка не подключена: на сервере нужен JWT-ключ (TOCHKA_JWT) и client_id (TOCHKA_CLIENT_ID).</div>
+          <ol className="steps-list">
+            <li>В интернет-банке Точки: «Сервисы» → «Интернет-эквайринг» → заявка, адрес сайта <b>greennessx.ru</b>. Там же подключите фискализацию (чеки 54-ФЗ) у партнёра Точки.</li>
+            <li>«Сервисы» → «Интеграции и API» → «Создать JWT-ключ» с разрешениями на эквайринг, клиентов и вебхуки. Сохраните ключ и client_id в файл на компьютере — в чат их не пишите.</li>
+            <li>Ключ прописывается в настройках сервера, после этого здесь появятся кнопки проверки.</li>
+          </ol>
+        </> : <>
+          <div className={"svc-line " + (t?.ready ? "on" : "")}>
+            {t?.ready ? `Торговая точка «${t.name || "—"}» работает${t.rate != null ? `, комиссия по карте ${t.rate}%` : ""}${t.cashbox ? `, касса: ${t.cashbox}` : ""}.`
+              : t ? `Торговая точка ещё не готова: статус ${t.status}. Эквайринг включится, когда банк закончит подключение.`
+              : "Ключ Точки задан. Нажмите «Проверить соединение»."}
+          </div>
+          {t && <dl className="kv">
+            <div><dt>Код клиента</dt><dd className="mono">{t.customerCode || "—"}</dd></div>
+            <div><dt>merchantId</dt><dd className="mono">{t.merchantId || "—"}</dd></div>
+            <div><dt>Сайт точки</dt><dd>{t.url || "—"}</dd></div>
+            <div><dt>Способы у банка</dt><dd>{t.modes?.length ? t.modes.map(m => MODE[m] || m).join(", ") : "—"}</dd></div>
+            <div><dt>Уведомления об оплате</dt><dd>{t.webhook ? `подключены ${new Date(t.webhook.at).toLocaleDateString("ru-RU")}` : "не подключены"}</dd></div>
+            <div><dt>Проверено</dt><dd>{t.checkedAt ? new Date(t.checkedAt).toLocaleString("ru-RU") : "—"}</dd></div>
+          </dl>}
+          <div className="actions">
+            <button type="button" className="btn" disabled={!!busy} onClick={() => tochka("check")}>{busy === "check" ? "Проверяем…" : "Проверить соединение"}</button>
+            <button type="button" className={"btn" + (t?.webhook ? "" : " primary")} disabled={!!busy || !sv.tochka} onClick={() => tochka("webhook")}>{busy === "webhook" ? "Подключаем…" : t?.webhook ? "Переподключить уведомления" : "Подключить уведомления об оплате"}</button>
+          </div>
+          <p className="panel-sub">Без уведомлений оплата всё равно подтвердится, когда покупатель вернётся на сайт, но с ними — сразу, даже если он закрыл вкладку. Для проверки Точка просит провести оплату на 1 ₽ и вернуть её: «Заказы» → «Вернуть деньги».</p>
+        </>}
+      </section>
+
       <section className="panel"><h2>Способы оплаты на сайте</h2>
-        <div className={"svc-line " + (ready ? "on" : "")}>{ready ? "ЮKassa подключена — включённые способы видны покупателям." : "ЮKassa не подключена: нужны YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY в настройках сервера. До этого настоящие способы покупателям не показываются."}</div>
+        {!prov && <div className="svc-line">Пока эквайринг не подключён, настоящие способы покупателям не показываются.</div>}
         <div className="pay-admin">
           {real.map(m => (
-            <label key={m.id} className={"pay-row" + (p[m.id] ? " on" : "")}>
+            <label key={m.id} className={"pay-row" + (p[m.id] && supported(m) ? " on" : "")}>
               <span className="payment-icon">{m.icon}</span>
-              <span><b>{m.name}</b><small>{m.note}</small></span>
+              <span><b>{m.name}</b><small>{supported(m) ? m.note : "Не подключён у торговой точки в Точке"}</small></span>
               <span className="switch"><input type="checkbox" checked={!!p[m.id]} onChange={e => upd({ [m.id]: e.target.checked })} aria-label={`${m.name}: показывать покупателям`} /><span className="track" /></span>
             </label>
           ))}
         </div>
         {!onCount && <p className="err">Все способы выключены — покупатели не смогут оплатить заказ.</p>}
-        <p className="panel-sub">SberPay и T-Pay включите, только если они подключены в личном кабинете ЮKassa. Выбранный способ сразу открывает нужную форму ЮKassa.</p>
+        <p className="panel-sub">Включённые способы видны покупателям и перечислены на странице «Оплата и безопасность». Выбранный способ сразу открывает нужную форму на странице банка.</p>
       </section>
 
       <section className="panel"><h2>Тестовая оплата</h2>

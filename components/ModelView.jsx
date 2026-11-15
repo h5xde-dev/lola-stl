@@ -89,8 +89,8 @@ export default function ModelView({ initial }) {
             {m.dims && <div className="detail-spec"><dt>Размер после печати</dt><dd>{m.dims}</dd></div>}
             {m.print && <div className="detail-spec"><dt>Печать</dt><dd>{m.print}</dd></div>}
             {m.material && <div className="detail-spec"><dt>Пластик</dt><dd>{m.material}</dd></div>}
-            <div className="detail-spec"><dt>Лицензия</dt><dd>личное использование и продажа отпечатков</dd></div>
-            <div className="detail-spec"><dt>Доставка</dt><dd>{m.free ? "сразу после оформления" : "сразу после оплаты"}</dd></div>
+            <div className="detail-spec"><dt>Лицензия</dt><dd><Link href="/offer">личное использование и продажа отпечатков</Link></dd></div>
+            <div className="detail-spec"><dt>Получение</dt><dd><Link href="/delivery">цифровой товар: ссылка на файлы {m.free ? "сразу после оформления" : "сразу после оплаты"}</Link></dd></div>
           </dl>
 
           {!m.free && <div className={"gift-note" + (promo && !isBox ? " on" : "")}>
@@ -106,7 +106,7 @@ export default function ModelView({ initial }) {
             </button>}
             {inCart && !inSet && !isOwned && <Link href="/cart" className="button button-dark full">Перейти в корзину <ArrowRight size={17} /></Link>}
           </div>
-          <p className="secure-note">Файлы останутся в личном кабинете, их можно скачать повторно.</p>
+          <p className="secure-note">{m.free ? "" : "Цена — за лицензию на файлы модели. "}Файлы останутся в личном кабинете, их можно скачать повторно. <Link href="/payment">Оплата</Link> · <Link href="/refund">Возврат</Link></p>
         </div>
       </div>
 

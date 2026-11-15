@@ -1,5 +1,6 @@
 import { getArticles, getCategories, getModels } from "@/lib/server/catalog";
 import { SITE_URL } from "@/lib/site";
+import { LEGAL_PAGES, LEGAL_VERSION } from "@/lib/legal";
 
 export const revalidate = 3600;
 
@@ -18,5 +19,6 @@ export default async function sitemap() {
     ...(posts.length ? [{ url: `${SITE_URL}/blog`, lastModified: posts[0].updated, changeFrequency: "weekly", priority: .6 }] : []),
     ...posts.map(a => ({ url: `${SITE_URL}/blog/${a.slug}`, lastModified: a.updated, changeFrequency: "monthly", priority: .6,
       images: a.cover?.src?.startsWith("/") ? [SITE_URL + a.cover.src] : [] })),
+    ...LEGAL_PAGES.filter(p => !p.hidden).map(p => ({ url: `${SITE_URL}/${p.slug}`, lastModified: LEGAL_VERSION, changeFrequency: "yearly", priority: .3 })),
   ];
 }

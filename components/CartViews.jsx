@@ -142,17 +142,18 @@ export function CheckoutView() {
   const free = Q.total === 0;
   if (!Q.count) return <CartView />;
 
-  // Сервер заново считает сумму, создаёт заказ и платёж в ЮKassa и возвращает адрес страницы оплаты.
+  // Сервер заново считает сумму, создаёт заказ и платёж в банке и возвращает адрес страницы оплаты.
   const submit = async e => {
     e.preventDefault();
     const f = e.currentTarget, email = f.email.value.trim(), err = {};
     set({ email });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) err.email = "Введите email в формате name@mail.ru: на него придёт чек.";
     if (!f.agree.checked) err.agree = "Отметьте согласие с офертой, чтобы перейти к оплате.";
+    if (!f.pd.checked) err.pd = "Отметьте согласие на обработку данных: без него мы не сможем прислать чек и файлы.";
     setErrors(err);
     if (Object.keys(err).length) return;
     setBusy(true);
-    const { ok, data } = await api("/api/checkout", { method: "POST", body: JSON.stringify({ cart: s.cart, code: s.code, email, agree: true, channel: tg ? "tg" : "site", method: f.pm?.value || (free ? "" : methods[0]?.id) }) });
+    const { ok, data } = await api("/api/checkout", { method: "POST", body: JSON.stringify({ cart: s.cart, code: s.code, email, agree: true, pd: true, channel: tg ? "tg" : "site", method: f.pm?.value || (free ? "" : methods[0]?.id) }) });
     if (!ok) { setBusy(false); setErrors({ form: data.error || "Не получилось создать заказ. Попробуйте ещё раз." }); return; }
     location.href = data.url;
   };
@@ -178,11 +179,14 @@ export function CheckoutView() {
               ))}
             </div>
             : <div className="order-alert"><Info size={16} aria-hidden="true" /><span>Оплата пока не подключена — магазин скоро откроется. Модели можно добавить в избранное.</span></div>}
-          <label className="check-row"><input type="checkbox" name="agree" /><span>Принимаю условия оферты и лицензии: файлы для личного использования и продажи отпечатков, передавать и публиковать файлы нельзя</span></label>
+          <label className="check-row"><input type="checkbox" name="agree" aria-invalid={!!errors.agree} /><span>Принимаю условия <Link href="/offer" target="_blank">публичной оферты и лицензии</Link>: файлы можно печатать и продавать отпечатки, но нельзя передавать и публиковать</span></label>
           {errors.agree && <span className="err">{errors.agree}</span>}
+          <label className="check-row"><input type="checkbox" name="pd" aria-invalid={!!errors.pd} /><span>Даю <Link href="/consent" target="_blank">согласие на обработку персональных данных</Link> в соответствии с <Link href="/privacy" target="_blank">политикой</Link></span></label>
+          {errors.pd && <span className="err">{errors.pd}</span>}
+          <p className="terms-note">Модели — цифровой товар: файлы доступны сразу после оплаты. Деньги возвращаются, если файл повреждён или не соответствует описанию — <Link href="/refund" target="_blank">условия возврата</Link>.</p>
           {errors.form && <span className="err">{errors.form}</span>}
           <button type="submit" className="button button-dark full site-only" disabled={busy || (!free && !methods.length)}>{busy ? "Создаём заказ…" : free ? <>Получить файлы <ArrowRight size={17} /></> : <>Оплатить {rub(Q.total)} <ArrowRight size={17} /></>}</button>
-          {!free && methods.some(m => !m.test) && <p className="terms-note">Оплата проходит на защищённой странице ЮKassa{tg ? ", после оплаты вы вернётесь сюда" : ""}.</p>}
+          {!free && methods.some(m => !m.test) && <p className="terms-note">Оплата проходит на защищённой странице банка — <Link href="/payment" target="_blank">о безопасности платежей</Link>{tg ? ". После оплаты вы вернётесь сюда" : ""}.</p>}
         </form>
         <div>
           <Summary title="В заказе" withCode />
@@ -193,7 +197,7 @@ export function CheckoutView() {
   );
 }
 
-// Возврат со страницы оплаты: ждём подтверждения от ЮKassa и открываем покупки.
+// Возврат со страницы оплаты: ждём подтверждения от банка и открываем покупки.
 export function ReturnView() {
   const { set, setFlash, loadMe } = useStore();
   const router = useRouter();
@@ -252,6 +256,7 @@ function LinkRequest() {
           <input id="lrEmail" type="email" placeholder="name@mail.ru" value={email} onChange={e => setEmail(e.target.value)} style={{ textTransform: "none", fontFamily: "var(--f-body)", letterSpacing: 0 }} />
           <button type="submit" className="mini-btn">Прислать ссылку</button>
         </div>
+        <p className="terms-note" style={{ marginTop: 8 }}>Нажимая «Прислать ссылку», вы соглашаетесь на обработку email по <Link href="/privacy">политике обработки персональных данных</Link>.</p>
       </form>;
 }
 

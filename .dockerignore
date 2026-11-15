@@ -6,6 +6,7 @@ node_modules
 .claude
 .env*
 !.env.example
-deploy
+deploy/*
+!deploy/certs
 docs
 *.md

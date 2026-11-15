@@ -14,15 +14,15 @@ const A = jar(), Bx = jar(), adm = jar();
 // Оплата: без ЮKassa и без тестовой оплаты оформить заказ нельзя; тестовая включается из админки
 await adm.f("/api/admin/login", { method: "POST", body: JSON.stringify({ login: AL, password: process.env.ADMIN_PASSWORD || "lola" }) });
 await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: false } }) });
-let r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "test" }) });
+let r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, pd: true, method: "test" }) });
 ok(r0.status === 400 && /не подключена/.test((await j(r0)).error), "без способов оплаты заказ не оформить");
 await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: true, testFor: "admin" } }) });
-r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "test" }) });
+r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, pd: true, method: "test" }) });
 ok(r0.status === 400, "тестовая оплата «только мне» недоступна посетителю");
-r0 = await adm.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "owner@b.ru", agree: true, method: "test" }) });
+r0 = await adm.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "owner@b.ru", agree: true, pd: true, method: "test" }) });
 ok(r0.status === 200 && (await j(r0)).url.startsWith("/pay/mock/"), "владелице тестовая оплата доступна");
-r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "sbp" }) });
-ok(r0.status === 400, "СБП без ЮKassa недоступна");
+r0 = await jar().f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, pd: true, method: "sbp" }) });
+ok(r0.status === 400, "СБП без подключённого эквайринга недоступна");
 await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ payments: { test: true, testFor: "all", sbp: true, card: true } }) });
 const home = await (await A.f("/")).text();
 ok(home.includes("Глубина") && home.includes("Все кашпо"), "главная из базы: модели и набор");
@@ -34,10 +34,14 @@ q = await j(await A.f("/api/quote", { method: "POST", body: JSON.stringify({ car
 ok(q.codeNote === "Такого промокода нет" && q.total === 700, "несуществующий промокод отклонён");
 
 // заказ без согласия и с плохим email
-let r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "x" , agree: true }) });
+let r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "x" , agree: true, pd: true }) });
 ok(r.status === 400, "плохой email — ошибка 400");
+r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", agree: true, method: "test" }) });
+ok(r.status === 400 && /персональных данных/.test((await j(r)).error), "без согласия на обработку данных заказ не оформить");
+r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p07"], email: "a@b.ru", pd: true, method: "test" }) });
+ok(r.status === 400 && /оферты/.test((await j(r)).error), "без согласия с офертой заказ не оформить");
 // заказ
-r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["set:kashpo-all", "p07"], code: "LOLA10", email: "Buyer@Example.ru", agree: true, channel: "site", method: "test", total: 1 }) });
+r = await A.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["set:kashpo-all", "p07"], code: "LOLA10", email: "Buyer@Example.ru", agree: true, pd: true, channel: "site", method: "test", total: 1 }) });
 const co = await j(r);
 ok(r.status === 200 && co.total === 2430 && co.url.startsWith("/pay/mock/"), `заказ ${co.code} создан, сумма с сервера ${co.total}, клиентская 1 ₽ проигнорирована`);
 ok(!!A.c.lola_o, "браузер покупателя получил доступ к заказу");
@@ -101,7 +105,7 @@ ok(q.lines.length === 1 && q.lines[0].id === "p06", "купленная моде
 ok(q.discount?.kind === "code" && q.total === 630, `тестовый заказ не даёт скидку постоянного и не расходует промокод: ${q.total} ₽`);
 // чужой email не даёт скидку постоянного
 const C = jar();
-r = await C.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p06"], email: "buyer@example.ru", agree: true, method: "test" }) });
+r = await C.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p06"], email: "buyer@example.ru", agree: true, pd: true, method: "test" }) });
 ok((await j(r)).total === 700, "чужой email без входа не даёт скидку постоянного");
 
 // автосохранение админки: включить акцию 1+1
@@ -171,7 +175,7 @@ ok(freePage.includes("Ромашки") && freePage.includes('"price":0'), "ра�
 const F = jar();
 q = await j(await F.f("/api/quote", { method: "POST", body: JSON.stringify({ cart: ["p05", "p01", "p02"] }) }));
 ok(q.total === 1200 && q.free.includes("p05") && q.pq.free === 1, "бесплатная модель 0 ₽ и не забирает подарок «2+1»");
-r = await F.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p05"], email: "free@example.ru", agree: true }) });
+r = await F.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p05"], email: "free@example.ru", agree: true, pd: true }) });
 const fo = await j(r);
 ok(r.status === 200 && fo.total === 0 && fo.url.includes("/checkout/return"), "бесплатный заказ оформляется без оплаты");
 me = await j(await F.f("/api/me"));
@@ -188,3 +192,26 @@ dl = await j(r);
 const fb = await F.f(dl.url);
 ok(r.status === 200 && /romashki_L-\d+_Поддон\.stl/.test(decodeURIComponent(fb.headers.get("content-disposition"))), "второй файл модели скачивается со своим именем");
 ok((await F.f("/api/download", { method: "POST", body: JSON.stringify({ order: fo.code, model: "p05", file: "nope" }) })).status === 404, "несуществующий файл — 404");
+
+// согласия сохраняются в заказе
+as = await j(await adm.f("/api/admin/state"));
+const fz = as.orders.find(o => o.id === fo.code);
+ok(fz?.consents?.offer && fz.consents.pd && fz.consents.ip && fz.consents.version, "согласия с офертой и на обработку данных сохранены в заказе с IP и редакцией");
+r = await adm.f(`/api/admin/orders/${fo.code}`, { method: "POST", body: JSON.stringify({ action: "refund" }) });
+ok(r.status === 400 && /бесплатный/.test((await j(r)).error), "бесплатный заказ вернуть нельзя");
+
+// документы для эквайринга: страницы, реквизиты, подвал, карта сайта
+const legal = ["offer", "privacy", "consent", "payment", "delivery", "refund", "contacts"];
+for (const p of legal) ok((await jar().f("/" + p)).status === 200, `страница /${p} открывается`);
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ company: { name: "ИП Тестова Анна Сергеевна", inn: "500100732259", ogrn: "304500116000157", address: "г. Москва", email: "shop@example.ru", phone: "+7 900 000-00-00", telegram: "@lola_stl", hours: "" } }) });
+const offer = await (await jar().f("/offer")).text();
+ok(offer.includes("Индивидуальный предприниматель Тестова Анна Сергеевна") && offer.includes("500100732259") && offer.includes("304500116000157") && offer.includes("ст. 1301"), "оферта с реквизитами из админки");
+const contacts = await (await jar().f("/contacts")).text();
+ok(contacts.includes("shop@example.ru") && contacts.includes("+7 900 000-00-00") && contacts.includes("г. Москва"), "контакты: email, телефон, адрес");
+const payPage = await (await jar().f("/payment")).text();
+ok(/PCI DSS/.test(payPage) && payPage.includes("СБП") && payPage.includes("3-D Secure"), "страница оплаты: способы, 3-D Secure, PCI DSS");
+const homeF = await (await jar().f("/")).text();
+ok(["/offer", "/privacy", "/payment", "/delivery", "/refund", "/contacts"].every(h => homeF.includes(`href="${h}"`)) && homeF.includes("ОГРНИП 304500116000157") && !homeF.includes("[ФИО]"), "подвал: ссылки на документы и полные реквизиты");
+const sm = await (await jar().f("/sitemap.xml")).text();
+ok(sm.includes("/offer") && sm.includes("/refund") && !sm.includes("/consent"), "документы в карте сайта (кроме согласия)");
+ok((await jar().f("/api/tochka/webhook", { method: "POST", headers: { "Content-Type": "text/plain" }, body: "a.b.c" })).status === 200, "вебхук Точки с неверной подписью отвечает 200 и ничего не делает");
