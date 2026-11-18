@@ -183,6 +183,7 @@ img { max-width: 100%; }
 .search-field { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); color: var(--faint); background: var(--surface); }
 .search-field input { width: 160px; outline: none; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); }
 .search-field:focus-within { border-color: var(--accent); }
+.catalog-bottom .button { margin-bottom: 12px; }
 .catalog-bottom { display: flex; align-items: center; flex-direction: column; gap: 6px; padding-top: 34px; color: var(--faint); font-size: 13px; text-align: center; }
 
 .product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px 20px; }
@@ -873,12 +874,17 @@ body { background: radial-gradient(ellipse at 82% 3%, #241338 0, var(--bg) 36rem
 
 /* карточка */
 .product-grid { grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 18px; }
+/* Наклон под курсором — только на компьютере с мышью: на телефоне 3D-трансформация каждой карточки
+   держала бы по отдельному графическому слою на карточку и тормозила прокрутку. */
 .product-card { padding: 8px; border-radius: var(--r-lg); background: linear-gradient(180deg, #17112a, #110d1c); border: 1px solid rgba(255, 255, 255, .06); --mx: 50%; --my: 0%;
-  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .25s ease, border-color .25s, box-shadow .25s; will-change: transform; }
+  transition: transform .25s ease, border-color .25s, box-shadow .25s; }
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px); }
+}
 .product-card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s;
   background: radial-gradient(260px circle at var(--mx) var(--my), rgba(255, 54, 207, .16), transparent 60%); }
 .product-card:hover::before { opacity: 1; }
-.product-card:hover { border-color: rgba(255, 54, 207, .35); box-shadow: 0 18px 40px rgba(0, 0, 0, .35), 0 0 30px rgba(255, 54, 207, .1); transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px); }
+.product-card:hover { border-color: rgba(255, 54, 207, .35); box-shadow: 0 18px 40px rgba(0, 0, 0, .35), 0 0 30px rgba(255, 54, 207, .1); }
 .product-card.is-in { border-color: rgba(38, 241, 220, .35); }
 .product-media { border-radius: 10px; overflow: hidden; }
 .product-image { aspect-ratio: 1 / 1; }
@@ -889,9 +895,9 @@ body { background: radial-gradient(ellipse at 82% 3%, #241338 0, var(--bg) 36rem
 
 /* бейджи и «избранное» — стекло */
 .product-tags { top: 10px; left: 10px; gap: 5px; }
-.product-tag { border-radius: 99px; padding: 4px 9px; font-size: 10px; letter-spacing: .02em; background: rgba(12, 9, 22, .55); color: #f3ddff; border: 1px solid var(--glass-line); backdrop-filter: blur(8px); }
+.product-tag { border-radius: 99px; padding: 4px 9px; font-size: 10px; letter-spacing: .02em; background: rgba(12, 9, 22, .78); color: #f3ddff; border: 1px solid var(--glass-line); }
 .product-tag.new { background: linear-gradient(105deg, #ff36cf, #bf48ff); color: var(--accent-ink); border-color: transparent; }
-.favorite-button { top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(12, 9, 22, .5); border: 1px solid var(--glass-line); backdrop-filter: blur(8px); transition: color .2s, transform .2s, background .2s; }
+.favorite-button { top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(12, 9, 22, .72); border: 1px solid var(--glass-line); transition: color .2s, transform .2s, background .2s; }
 .favorite-button:hover { transform: scale(1.08); background: rgba(12, 9, 22, .7); }
 
 /* цена и кнопка «в корзину» */
@@ -950,10 +956,18 @@ body { background: radial-gradient(ellipse at 82% 3%, #241338 0, var(--bg) 36rem
 
 /* живой фон: плывущие пятна и свечение за курсором */
 .bg-fx { position: fixed; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; }
-.blob { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(80px); opacity: .22; mix-blend-mode: screen; }
-.b1 { background: #ff36cf; top: -18vmax; left: -12vmax; animation: drift1 28s ease-in-out infinite alternate; }
-.b2 { background: #26f1dc; bottom: -22vmax; right: -14vmax; opacity: .14; animation: drift2 34s ease-in-out infinite alternate; }
-.b3 { background: #7a3cff; top: 30%; left: 40%; width: 34vmax; height: 34vmax; opacity: .16; animation: drift3 40s ease-in-out infinite alternate; }
+/* Пятна — мягкие радиальные градиенты без filter: blur: размытие на весь экран пересчитывалось
+   на каждом кадре и съедало десятки секунд работы процессора на телефоне. Движутся только на компьютере. */
+.blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; opacity: .22; }
+.b1 { background: radial-gradient(closest-side, #ff36cf, rgba(255, 54, 207, .35) 45%, transparent); top: -24vmax; left: -18vmax; }
+.b2 { background: radial-gradient(closest-side, #26f1dc, rgba(38, 241, 220, .3) 45%, transparent); bottom: -28vmax; right: -20vmax; opacity: .14; }
+.b3 { background: radial-gradient(closest-side, #7a3cff, rgba(122, 60, 255, .3) 45%, transparent); top: 26%; left: 34%; width: 46vmax; height: 46vmax; opacity: .16; }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+  .blob { will-change: transform; }
+  .b1 { animation: drift1 28s ease-in-out infinite alternate; }
+  .b2 { animation: drift2 34s ease-in-out infinite alternate; }
+  .b3 { animation: drift3 40s ease-in-out infinite alternate; }
+}
 @keyframes drift1 { to { transform: translate(18vw, 22vh) scale(1.15); } }
 @keyframes drift2 { to { transform: translate(-22vw, -18vh) scale(1.1); } }
 @keyframes drift3 { to { transform: translate(-26vw, 14vh) scale(.85); } }
@@ -968,15 +982,20 @@ body { background: var(--bg); }
 .fx .g-item[data-in] { animation-name: rise; }
 
 /* коллаж в шапке: фото медленно «дышат» */
-.shot.side { animation: float 7s ease-in-out infinite; }
-.shot.s2 { animation-delay: -3.5s; }
+@media (hover: hover) and (pointer: fine) {
+  .shot.side { animation: float 7s ease-in-out infinite; }
+  .shot.s2 { animation-delay: -3.5s; }
+}
 @keyframes float { 50% { translate: 0 -10px; } }
 .shot.main img { transition: transform 1.2s cubic-bezier(.2, .7, .2, 1); }
 .hero-collage:hover .shot.main img { transform: scale(1.04); }
-.hero h1 em { background: linear-gradient(100deg, #ff48d5, #bf48ff 40%, #26f1dc 80%, #ff48d5); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; animation: sheen 8s linear infinite; }
+.hero h1 em { background: linear-gradient(100deg, #ff48d5, #bf48ff 40%, #26f1dc 80%, #ff48d5); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
+/* Перелив заголовка перерисовывает текст на каждом кадре — только на компьютере */
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) { .hero h1 em { animation: sheen 8s linear infinite; } }
 @keyframes sheen { to { background-position: 220% center; } }
-.eyebrow-line { animation: pulse-line 3s ease-in-out infinite; }
-@keyframes pulse-line { 50% { opacity: .4; width: 34px; } }
+/* Пульс линии — через transform, без пересчёта раскладки */
+.eyebrow-line { transform-origin: left center; animation: pulse-line 3s ease-in-out infinite; }
+@keyframes pulse-line { 50% { opacity: .4; transform: scaleX(1.4); } }
 
 /* бегущая строка */
 .marquee { position: relative; overflow: hidden; border-block: 1px solid var(--line); background: rgba(19, 16, 31, .6); padding: 14px 0; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
