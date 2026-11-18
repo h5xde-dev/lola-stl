@@ -1,6 +1,6 @@
 // Проверка оплаты через Точку на заглушке её API (без настоящих денег и без интернета).
 // Запуск на чистой базе:
-//   rm -rf .data && TOCHKA_JWT=test-jwt TOCHKA_CLIENT_ID=cid TOCHKA_API=http://127.0.0.1:3399 \
+//   rm -rf .data && PAYMENT_CHECK_SECONDS=2 TOCHKA_JWT=test-jwt TOCHKA_CLIENT_ID=cid TOCHKA_API=http://127.0.0.1:3399 \
 //     TOCHKA_PUBLIC_KEY=/tmp/tochka-test-key.json AUTH_SECRET=test ADMIN_LOGIN=lola ADMIN_PASSWORD=lola DEMO=off PORT=3311 npm start
 //   BASE_URL=http://localhost:3311 TOCHKA_PUBLIC_KEY=/tmp/tochka-test-key.json node scripts/e2e-tochka.mjs
 // Скрипт сам поднимает заглушку API на :3399 и пишет открытый ключ подписи вебхуков в TOCHKA_PUBLIC_KEY.
@@ -117,6 +117,21 @@ try {
   op2.status = "APPROVED";
   st = await j(await Bx.f(`/api/orders/${co2.code}`));
   ok(st.status === "paid", "без вебхука оплата подтверждается запросом статуса в Точку");
+
+  // без вебхука и без возврата покупателя на сайт: фоновая проверка сама находит оплату
+  // (сервер запущен с PAYMENT_CHECK_SECONDS=2)
+  const Cx = jar();
+  r = await Cx.f("/api/checkout", { method: "POST", body: JSON.stringify({ cart: ["p05"], email: "third@example.ru", agree: true, pd: true, method: "sbp" }) });
+  const co3 = await j(r);
+  const op3 = Object.values(ops).find(o => o.paymentLinkId === co3.code);
+  op3.status = "APPROVED";
+  let seen = false;
+  for (let i = 0; i < 15 && !seen; i++) {
+    await new Promise(res => setTimeout(res, 1000));
+    as = await j(await adm.f("/api/admin/state"));
+    seen = as.orders.find(o => o.id === co3.code)?.status === "paid";
+  }
+  ok(seen, "покупатель закрыл страницу банка — фоновая проверка сама подтвердила оплату");
 
   // возврат из админки: деньги через Точку, доступ закрыт
   r = await adm.f(`/api/admin/orders/${co.code}`, { method: "POST", body: JSON.stringify({ action: "refund" }) });
