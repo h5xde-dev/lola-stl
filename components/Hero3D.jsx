@@ -83,13 +83,39 @@ const LAYOUT = [
   { surf: "ribs", prof: "bulb", r: .5, h: 1.2, twist: .8, n: 18, x: .1, y: -.86, z: -3.4, tilt: .3, spin: .22 },
 ];
 
+// Где сцену не запускаем: на телефонах и планшетах, без мыши, при «уменьшении движения» и экономии трафика,
+// на слабых процессорах и там, где WebGL считается процессором без видеокарты (SwiftShader, llvmpipe).
+// Каждый кадр там занимал 300–400 мс, страница переставала отвечать на нажатия.
+function canRun3D() {
+  if (typeof window === "undefined") return false;
+  const mm = q => window.matchMedia(q).matches;
+  if (!mm("(min-width: 900px)") || !mm("(hover: hover) and (pointer: fine)") || mm("(prefers-reduced-motion: reduce)")) return false;
+  if (navigator.connection?.saveData || (navigator.hardwareConcurrency || 8) < 4) return false;
+  try {
+    const gl = document.createElement("canvas").getContext("webgl");
+    if (!gl) return false;
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    if (/swiftshader|llvmpipe|software|microsoft basic render/i.test(name)) return false;
+  } catch { return false; }
+  return true;
+}
+
+// Запуск после загрузки страницы, когда браузер свободен: 3D не мешает первому показу и прокрутке
+const whenIdle = fn => {
+  const go = () => ("requestIdleCallback" in window ? requestIdleCallback(fn, { timeout: 3000 }) : setTimeout(fn, 1200));
+  if (document.readyState === "complete") go(); else addEventListener("load", go, { once: true });
+};
+
 export default function Hero3D() {
   const box = useRef(null);
   useEffect(() => {
     const el = box.current;
-    if (!el) return;
+    if (!el || !canRun3D()) return;
     let stop = false, cleanup = () => {};
-    (async () => {
+    whenIdle(async () => {
+      if (stop) return;
       const THREE = await import("three");
       const { RoomEnvironment } = await import("three/examples/jsm/environments/RoomEnvironment.js");
       if (stop) return;
@@ -190,7 +216,7 @@ export default function Hero3D() {
         scene.traverse(o => { o.geometry?.dispose(); o.material?.dispose?.(); });
         pm.dispose(); renderer.dispose(); renderer.domElement.remove();
       };
-    })();
+    });
     return () => { stop = true; cleanup(); };
   }, []);
   return <div ref={box} className="hero-3d" aria-hidden="true" />;
