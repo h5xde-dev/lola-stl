@@ -35,7 +35,6 @@
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { text-wrap: balance; }
 a { color: inherit; text-decoration: none; }
@@ -100,6 +99,9 @@ img { max-width: 100%; }
 .announcement.promo svg { color: #fff; }
 .announcement.promo .dim { color: #c9fff8; }
 .site-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+/* Над прилипшей шапкой — полоса под вырезом экрана и панелью встроенного браузера (Telegram, Instagram):
+   заливаем её фоном шапки, чтобы страница не просвечивала над ней при прокрутке. */
+.site-header::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top, 0px); background: #0d0a17; pointer-events: none; }
 .header-in { height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; position: relative; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-display); font-size: 20px; letter-spacing: -.02em; font-weight: 700; line-height: 1; }
 .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--surface); font: 700 13px var(--f-display); letter-spacing: 0; flex: none; }
@@ -507,7 +509,7 @@ table.tbl.compact { min-width: 0; }
   .editor-art { max-width: 320px; }
 }
 @media (max-width: 640px) {
-  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
   .announcement { font-size: 10px; }
   .announcement .dim, .announcement .tail { display: none; }
   .header-in { height: 64px; }
@@ -894,7 +896,10 @@ body { background: radial-gradient(ellipse at 82% 3%, #241338 0, var(--bg) 36rem
 .product-foot { border-top: 0; padding-top: 10px; }
 
 /* бейджи и «избранное» — стекло */
-.product-tags { top: 10px; left: 10px; gap: 5px; }
+/* Плашки не заходят под сердечко: справа оставлено место под кнопку 34 px */
+.product-tags { top: 10px; left: 10px; right: 52px; gap: 5px; flex-wrap: wrap; align-items: flex-start; }
+.product-tag { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.favorite-button { z-index: 2; }
 .product-tag { border-radius: 99px; padding: 4px 9px; font-size: 10px; letter-spacing: .02em; background: rgba(12, 9, 22, .78); color: #f3ddff; border: 1px solid var(--glass-line); }
 .product-tag.new { background: linear-gradient(105deg, #ff36cf, #bf48ff); color: var(--accent-ink); border-color: transparent; }
 .favorite-button { top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(12, 9, 22, .72); border: 1px solid var(--glass-line); transition: color .2s, transform .2s, background .2s; }
@@ -1298,3 +1303,19 @@ body { background: var(--bg); }
   .cookie-note { flex-direction: column; align-items: stretch; left: 12px; right: 12px; bottom: 12px; }
   .tg .cookie-note { display: none; }
 }
+
+/* «Назад» на странице модели */
+.model-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 6px 0; margin-bottom: 10px; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+.model-back:hover { color: var(--accent); }
+
+/* Порядок моделей в админке */
+.order-cell { white-space: nowrap; }
+.order-cell > * { vertical-align: middle; }
+.drag-handle { border: 0; background: none; color: var(--muted); padding: 4px; cursor: grab; touch-action: none; }
+.drag-handle:disabled { opacity: .3; cursor: default; }
+.order-input { width: 52px; padding: 4px 6px; margin: 0 4px; font: inherit; font-size: 13px; text-align: center; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
+.order-arrows { display: inline-flex; flex-direction: column; }
+.order-arrows button { border: 0; background: none; color: var(--muted); padding: 0 2px; line-height: 1; }
+.order-arrows button:disabled { opacity: .25; }
+.tbl tr.dragging { opacity: .45; }
+.tbl tr.drop-here td { box-shadow: inset 0 2px 0 var(--accent); }

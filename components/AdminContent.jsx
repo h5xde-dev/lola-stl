@@ -8,7 +8,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, ImagePlus, Plus, Trash2, T
 import { api, useStore } from "./Store";
 import { listImages, uploadImage } from "./media";
 import { slugify } from "@/lib/models";
-import { companyMissing, DEFAULT_HOME, innOk, mergeHome, ogrnipOk } from "@/lib/content";
+import { companyMissing, DEFAULT_HOME, HOME_SECTIONS, innOk, mergeHome, ogrnipOk } from "@/lib/content";
 import { Markdown, plainText } from "@/lib/md";
 import { rub } from "@/lib/format";
 import { mergePayments, methodFor, PAY_METHODS } from "@/lib/payments";
@@ -97,6 +97,18 @@ export function AdminHome() {
       <div className="adm-h"><div><Eyebrow /><h1>Главная страница</h1></div>
         <a href="/" target="_blank" rel="noopener" className="button button-outline"><ExternalLink size={16} /> Открыть главную</a></div>
       <p className="panel-sub">Изменения сохраняются автоматически и сразу видны на сайте. Фото уменьшаются до 2000 px и показываются посетителям в сжатом виде.</p>
+
+      <section className="panel"><h2>Блоки на главной</h2>
+        <p className="panel-sub">Выключенный блок пропадает с главной, его содержимое сохраняется — можно включить обратно.</p>
+        <div className="pay-admin">
+          {HOME_SECTIONS.map(([k, label]) => (
+            <label key={k} className={"pay-row" + (h.sections[k] ? " on" : "")}>
+              <span style={{ flex: 1, display: "grid", gap: 2 }}><b>{label}</b>{k === "works" && !h.gallery.length && <small>Фото в галерее нет — блок скрыт, пока не добавите</small>}</span>
+              <span className="switch"><input type="checkbox" checked={!!h.sections[k]} onChange={e => upd({ sections: { ...h.sections, [k]: e.target.checked } })} aria-label={`Показывать: ${label}`} /><span className="track" /></span>
+            </label>
+          ))}
+        </div>
+      </section>
 
       <section className="panel"><h2>Первый экран</h2>
         <div className="fgrid">{txt("kicker", "Надпись над заголовком", DEFAULT_HOME.kicker)}{txt("title", "Заголовок", DEFAULT_HOME.title)}{txt("titleEm", "Вторая строка (цветная)", DEFAULT_HOME.titleEm)}</div>

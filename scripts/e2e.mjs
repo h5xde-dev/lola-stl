@@ -215,3 +215,35 @@ ok(["/offer", "/privacy", "/payment", "/delivery", "/refund", "/contacts"].every
 const sm = await (await jar().f("/sitemap.xml")).text();
 ok(sm.includes("/offer") && sm.includes("/refund") && !sm.includes("/consent"), "документы в карте сайта (кроме согласия)");
 ok((await jar().f("/api/tochka/webhook", { method: "POST", headers: { "Content-Type": "text/plain" }, body: "a.b.c" })).status === 200, "вебхук Точки с неверной подписью отвечает 200 и ничего не делает");
+
+// лотки вне акций: категория с gifts: false считается по цене одной модели, без «2+1»
+as = await j(await adm.f("/api/admin/state"));
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ categories: as.categories.map(c => c.id === "c-lotki" ? { ...c, gifts: false } : c) }) });
+as = await j(await adm.f("/api/admin/state"));
+ok(as.categories.find(c => c.id === "c-lotki")?.gifts === false, "флаг «вне акций» у категории сохраняется");
+q = await j(await jar().f("/api/quote", { method: "POST", body: JSON.stringify({ cart: ["p01", "p02", "p07"] }) }));
+ok(q.total === 1900 && q.solo?.includes("p07") && !q.lines.find(l => l.id === "p07").gift, `2 кашпо + лоток: лоток не подарок, ${q.total} ₽`);
+q = await j(await jar().f("/api/quote", { method: "POST", body: JSON.stringify({ cart: ["p01", "p02", "p03"] }) }));
+ok(q.total === 1200, "2 кашпо + кашпо: третье по-прежнему в подарок");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ categories: as.categories.map(c => c.id === "c-lotki" ? { ...c, gifts: true } : c) }) });
+
+// блоки главной выключаются; галерея скрыта и без фото
+const homeOn = await (await jar().f("/")).text();
+ok(homeOn.includes('id="works"') && homeOn.includes("marquee"), "галерея и бегущая строка видны по умолчанию");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ home: { ...as.home, sections: { ...as.home.sections, works: false, marquee: false } } }) });
+const homeOff = await (await jar().f("/")).text();
+ok(!homeOff.includes('id="works"') && !homeOff.includes('class="marquee"') && !homeOff.includes('href="#works"'), "выключенные блоки и кнопка «Смотреть отпечатки» пропадают");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ home: { ...as.home, gallery: [], sections: { ...as.home.sections } } }) });
+ok(!(await (await jar().f("/")).text()).includes('id="works"'), "пустая галерея не показывается");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ home: as.home }) });
+
+// порядок моделей из админки = порядок в каталоге
+as = await j(await adm.f("/api/admin/state"));
+const ordered = [...as.models].sort((a, b) => (a.id === "p07" ? -1 : b.id === "p07" ? 1 : 0)).map((m, i) => ({ ...m, order: i + 1 }));
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: ordered }) });
+const firstCard = (await (await jar().f("/")).text()).match(/<article class="product-card[^"]*"[\s\S]*?<h3><a href="\/models\/([^"]+)"/)?.[1];
+ok(firstCard === "lotok-kapli" || firstCard === as.models.find(m => m.id === "p07")?.slug, `первая в каталоге — модель, поставленная первой (${firstCard})`);
+
+// на странице модели с фото нет нарисованной схемы
+const mp = await (await jar().f("/models/glubina")).text();
+ok(!mp.includes("Схема модели") && mp.includes("model-back"), "у модели с фото нет схемы в галерее, есть кнопка «Назад»");

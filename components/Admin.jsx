@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, ChartColumn, ChevronDown, CreditCard, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, GripVertical, ChartColumn, ChevronDown, CreditCard, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { api, useStore } from "./Store";
@@ -108,6 +108,32 @@ export function AdminModels() {
   const sales = {};
   s.orders.forEach(o => o.items.forEach(id => { sales[id] = (sales[id] || 0) + 1; }));
   const list = L.filter(m => !q.trim() || m.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const searching = !!q.trim();
+  // Порядок в каталоге: models[].order (1…n). Сервер отдаёт модели уже отсортированными по нему.
+  const moveTo = (id, pos) => {
+    const ids = L.map(m => m.id).filter(x => x !== id);
+    ids.splice(Math.max(0, Math.min(ids.length, pos)), 0, id);
+    const rank = new Map(ids.map((x, i) => [x, i + 1]));
+    set(p => ({ models: p.models.map(m => (rank.has(m.id) ? { ...m, order: rank.get(m.id) } : m)).sort((a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9)) }));
+  };
+  const idx = id => L.findIndex(m => m.id === id);
+  // Перетаскивание за ручку: работает мышью и пальцем (pointer-события)
+  const [drag, setDrag] = useState(null); // { id, over }
+  const startDrag = (e, id) => {
+    if (searching) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setDrag({ id, over: id });
+  };
+  const onDragMove = e => {
+    if (!drag) return;
+    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("tr[data-id]");
+    if (row && row.dataset.id !== drag.over) setDrag(d => ({ ...d, over: row.dataset.id }));
+  };
+  const endDrag = () => {
+    if (drag && drag.over !== drag.id) { moveTo(drag.id, idx(drag.over)); toast("Порядок моделей сохранён"); }
+    setDrag(null);
+  };
   const pub = (m, on) => {
     set(p => ({ models: p.models.map(x => x.id === m.id ? { ...x, hidden: !on } : x) }));
     toast(on ? `«${m.name}» снова в каталоге` : `«${m.name}» скрыта из каталога`);
@@ -122,10 +148,21 @@ export function AdminModels() {
       </div>
       <input className="search" type="search" placeholder="Найти модель" value={q} onChange={e => setQ(e.target.value)} aria-label="Найти модель" />
       <div className="tbl-wrap"><table className="tbl">
-        <thead><tr><th></th><th>Название</th><th>Тип</th><th className="r">Файл</th><th className="r">Продажи</th><th>В каталоге</th><th></th></tr></thead>
+        <thead><tr><th title="Порядок в каталоге">№</th><th></th><th>Название</th><th>Тип</th><th className="r">Файл</th><th className="r">Продажи</th><th>В каталоге</th><th></th></tr></thead>
         <tbody>
           {list.length ? list.map(m => (
-            <tr key={m.id} className={m.hidden ? "off" : ""}>
+            <tr key={m.id} data-id={m.id} className={(m.hidden ? "off " : "") + (drag?.id === m.id ? "dragging " : "") + (drag && drag.over === m.id && drag.id !== m.id ? "drop-here" : "")}>
+              <td className="order-cell">
+                <button type="button" className="drag-handle" aria-label={`Перетащить «${m.name}»`} title={searching ? "Сбросьте поиск, чтобы перетаскивать" : "Перетащите, чтобы поменять порядок"} disabled={searching}
+                  onPointerDown={e => startDrag(e, m.id)} onPointerMove={onDragMove} onPointerUp={endDrag} onPointerCancel={() => setDrag(null)}><GripVertical size={16} /></button>
+                <input className="order-input" type="number" min={1} max={L.length} key={idx(m.id)} defaultValue={idx(m.id) + 1} aria-label={`Позиция «${m.name}» в каталоге`}
+                  onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  onBlur={e => { const n = Math.round(+e.target.value); if (n && n - 1 !== idx(m.id)) { moveTo(m.id, n - 1); toast(`«${m.name}» теперь на ${n}-м месте`); } }} />
+                <span className="order-arrows">
+                  <button type="button" aria-label="Выше" disabled={idx(m.id) === 0} onClick={() => moveTo(m.id, idx(m.id) - 1)}><ArrowUp size={13} /></button>
+                  <button type="button" aria-label="Ниже" disabled={idx(m.id) === L.length - 1} onClick={() => moveTo(m.id, idx(m.id) + 1)}><ArrowDown size={13} /></button>
+                </span>
+              </td>
               <td><div className="thumb"><ModelArt m={m} uid={"a-" + m.id} /></div></td>
               <td><b>{m.name}</b>{m.free && <> <span className="tag test">бесплатно</span></>}{m.isNew && <> <span className="tag">новинка</span></>}<div className="meta">{m.dims || "размер не указан"} · /models/{m.slug}</div></td>
               <td>{kindName(m, cats)}</td>
@@ -135,10 +172,10 @@ export function AdminModels() {
                 <input type="checkbox" checked={!m.hidden} disabled={!m.mb} onChange={e => pub(m, e.target.checked)} aria-label={`Показывать «${m.name}» в каталоге`} /><span className="track" /></label></td>
               <td className="r"><Link href={`/admin/models/${m.id}`} className="mini-btn">Изменить</Link></td>
             </tr>
-          )) : <tr><td colSpan={7} className="meta" style={{ padding: 20 }}>Ничего не нашлось.</td></tr>}
+          )) : <tr><td colSpan={8} className="meta" style={{ padding: 20 }}>Ничего не нашлось.</td></tr>}
         </tbody>
       </table></div>
-      <p className="note">Скрытая модель пропадает из каталога, но у тех, кто её купил, файл остаётся в личном кабинете.</p>
+      <p className="note">Порядок в таблице — порядок в каталоге на сайте. Перетащите строку за ручку, впишите номер позиции или нажмите стрелки. Скрытая модель пропадает из каталога, но у тех, кто её купил, файл остаётся в личном кабинете.</p>
     </>
   );
 }
@@ -387,6 +424,7 @@ export function AdminPrices() {
           {[1, 2, 3, 4, 5, 6, 7].map(P => <PriceCell onSave={setPrice} key={P} k={"paid." + P} label={models(P)} val={pr.paid[P]} prov={isProv(P)} />)}
           <PriceCell onSave={setPrice} k="per8" label="от 8, за каждую" val={pr.per8} />
         </div>
+        {8 * pr.per8 < +pr.paid[7] && <p className="err">Цена падает: 8 оплачиваемых моделей стоят {rub(8 * pr.per8)}, а 7 — {rub(pr.paid[7])}. Добавив ещё одну модель, покупатель заплатит меньше. «От 8» должно быть не меньше {rub(Math.ceil(pr.paid[7] / 8))} за модель.</p>}
         {pr.prov.length > 0 && <p className="note">Цен за {pr.prov.join(", ")} модели не было в задании, здесь стоят предварительные. Измените цену, и она станет согласованной.</p>}
       </section>
       <section className="panel"><h2>Боксы</h2>
@@ -546,10 +584,13 @@ export function AdminCategories() {
           </div>
           <div className="fgrid">
             <div className="f"><label htmlFor="cPricing">Цены</label>
-              <select id="cPricing" value={edit.pricing} onChange={e => upd({ pricing: e.target.value })}>
+              <select id="cPricing" value={edit.pricing === "box" ? "box" : edit.gifts === false ? "solo" : "plant"}
+                onChange={e => upd({ pricing: e.target.value === "box" ? "box" : "plant", gifts: e.target.value !== "solo" })}>
                 <option value="plant">Как кашпо: «2+1» и «1+1»</option>
+                <option value="solo">Вне акций: каждая по цене одной модели</option>
                 <option value="box">Как боксы: отдельные цены, без подарков</option>
-              </select></div>
+              </select>
+              <small>«Вне акций» — модели не бывают подарком, на них не действуют «2+1», «1+1» и промокоды.</small></div>
             <div className="f"><label htmlFor="cSlug">Адрес страницы</label><input type="text" id="cSlug" value={edit.slug} placeholder={slugify(edit.name || "category")} onChange={e => upd({ slug: slugify(e.target.value) })} /><small>/category/{edit.slug || slugify(edit.name || "category")}</small></div>
           </div>
           <div className="f"><label htmlFor="cDesc">Описание для страницы категории</label><textarea id="cDesc" value={edit.desc} placeholder="Пара предложений: что за модели, для чего, как печатаются. Попадает в поиск." onChange={e => upd({ desc: e.target.value })} /></div>
@@ -573,7 +614,7 @@ export function AdminCategories() {
               <button type="button" className="mini-btn" disabled={!i} aria-label={`Поднять «${c.name}»`} onClick={() => move(c.id, -1)}><ArrowUp size={14} /></button>
               <button type="button" className="mini-btn" disabled={i === cats.length - 1} aria-label={`Опустить «${c.name}»`} onClick={() => move(c.id, 1)}><ArrowDown size={14} /></button></div></td>
             <td><b>{c.name}</b><div className="meta"><Link href={categoryHref(c)} className="text-link" style={{ fontSize: 12 }}>/category/{c.slug}</Link></div></td>
-            <td>{c.pricing === "box" ? "Как боксы" : "2+1 и 1+1"}</td>
+            <td>{c.pricing === "box" ? "Как боксы" : c.gifts === false ? "Вне акций" : "2+1 и 1+1"}</td>
             <td className="r">{count(c.id)}</td>
             <td><label className="switch"><input type="checkbox" checked={!!c.inMenu} aria-label={`Показывать «${c.name}» в меню`}
               onChange={e => set(p => ({ categories: p.categories.map(x => x.id === c.id ? { ...x, inMenu: e.target.checked } : x) }))} /><span className="track" /></label></td>

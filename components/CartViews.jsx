@@ -53,6 +53,10 @@ function Summary({ title = "Ваш заказ", withBtn, withCode }) {
         <div className="summary-row"><span>Модели · {Q.plants.length}</span><b>{rub(pq.price)}{pq.prov ? "*" : ""}</b></div>
         <div className="summary-sub">{pq.P} оплачиваемых <span className="gift-count">+ {pq.G} в подарок</span></div>
       </>}
+      {(Q.solo || []).length > 0 && <>
+        <div className="summary-row"><span>Вне акций · {Q.solo.length}</span><b>{rub(Q.sp)}</b></div>
+        <div className="summary-sub">по {rub(Q.nextPlantNoGift)} за модель, без подарков и скидок</div>
+      </>}
       {Q.boxes.length > 0 && <>
         <div className="summary-row"><span>Боксы · {Q.boxes.length}</span><b>{rub(Q.bp)}</b></div>
         <div className="summary-sub">отдельная цена, без акций и скидок</div>
@@ -112,6 +116,10 @@ export function CartView() {
             {Q.plants.length > 0 && <section className="cart-group" aria-label="Модели">
               <div className="cart-list-head"><span>МОДЕЛИ</span><span>{Q.pq.P} + {Q.pq.G}</span></div>
               {Q.plants.map((id, i) => <Line key={id} id={id} tag={i < Q.pq.P ? "оплачиваемая" : "подарок"} gift={i >= Q.pq.P} />)}
+            </section>}
+            {(Q.solo || []).length > 0 && <section className="cart-group" aria-label="Модели вне акций">
+              <div className="cart-list-head"><span>ВНЕ АКЦИЙ</span><span>{Q.solo.length}</span></div>
+              {Q.solo.map(id => <Line key={id} id={id} tag="без подарков" />)}
             </section>}
             {Q.boxes.length > 0 && <section className="cart-group" aria-label="Боксы">
               <div className="cart-list-head"><span>БОКСЫ</span><span>{Q.boxes.length}</span></div>

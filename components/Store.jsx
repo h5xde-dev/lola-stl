@@ -5,7 +5,7 @@
 // Покупки загружаются с сервера; админка загружает данные целиком и сохраняет изменения через API.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { isSet, ownedIds, promoOn, quote } from "@/lib/pricing";
+import { canBeGift, isSet, ownedIds, promoOn, quote } from "@/lib/pricing";
 import { rub } from "@/lib/format";
 
 const KEY = "lola-cart-v1";
@@ -100,7 +100,7 @@ export function StoreProvider({ initial, children }) {
     if (inSet) { toast(`«${m.name}» уже входит в набор «${inSet.name}»`); return; }
     const next = quote({ ...s, cart: [...s.cart, id] }, byId, { cats });
     set(p => ({ cart: [...p.cart, id] }));
-    toast(m.cat === "plant" && Q?.pq.free > 0 ? `«${m.name}» добавлена в подарок` : `«${m.name}» в корзине · ${rub(next.total)}`);
+    toast(canBeGift(Q, m) && Q?.pq.free > 0 ? `«${m.name}» добавлена в подарок` : `«${m.name}» в корзине · ${rub(next.total)}`);
   }, [byId, cats, s, Q, owned, set, toast]);
 
   const toggleFav = useCallback(id => {

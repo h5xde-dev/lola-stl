@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Check, Download, Gift, Heart, Layers, Plus } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { useStore } from "./Store";
-import { addCost, quote, setId } from "@/lib/pricing";
+import { addCost, canBeGift, quote, setId } from "@/lib/pricing";
 import { kindName, modelHref } from "@/lib/models";
 import { rub } from "@/lib/format";
 
@@ -14,8 +14,8 @@ export function useOffer(m) {
   const inSet = Q.bundles.some(x => x.b.items.includes(m.id));
   const inCart = s.cart.includes(m.id) || inSet;
   const cost = addCost(Q, m);
-  const gift = !inCart && !m.free && m.cat === "plant" && Q.pq.free > 0;
-  const hasSame = m.cat === "box" ? Q.boxes.length > 0 : Q.plants.length > 0;
+  const gift = !inCart && canBeGift(Q, m) && Q.pq.free > 0;
+  const hasSame = m.cat === "box" ? Q.boxes.length > 0 : canBeGift(Q, m) ? Q.plants.length > 0 : (Q.solo || []).length > 0;
   return { inCart, inSet, isOwned, gift, cost, hasSame };
 }
 

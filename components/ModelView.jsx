@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowRight, Check, Gift, PenTool, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Check, Gift, PenTool, Sparkles } from "lucide-react";
 import ModelArt from "./ModelArt";
 import ProductCard, { FavButton, useOffer } from "./ProductCard";
 import { useStore } from "./Store";
@@ -18,20 +19,31 @@ export default function ModelView({ initial }) {
   const { inCart, inSet, isOwned, gift, cost, hasSame } = useOffer(m);
   const [shot, setShot] = useState(0);
   const photos = m.photos || [];
-  const shots = [...photos, null];
+  // Схема-рисунок — только если своих фото нет совсем
+  const shots = photos.length ? photos : [null];
+  const router = useRouter();
+  // «Назад»: если пришли с другой страницы сайта — возвращаемся туда (каталог откроется на той же позиции),
+  // если страницу открыли по ссылке извне — ведём в каталог.
+  const [canBack, setCanBack] = useState(false);
+  useEffect(() => { try { setCanBack(+sessionStorage.getItem("lola-nav") > 1); } catch {} }, []);
+  const back = () => (canBack ? router.back() : router.push(cat ? categoryHref(cat) : "/#catalog"));
   const pr = s.prices;
   const rel = related(s.models, m, 4);
   const isBox = m.cat === "box";
   const cat = catOf(m, cats);
 
+  const solo = !isBox && cat?.gifts === false; // категория вне акций, например лотки
   const giftText = isBox
     ? { b: "Боксы считаются отдельно", t: `Один бокс ${rub(pr.box[1])}, от 4 штук ${rub(pr.box4)} за каждый. Акции, подарки и промокоды на боксы не действуют.` }
+    : solo
+    ? { b: `${cat.name} — вне акций`, t: `Каждая модель ${rub(paidPrice(pr, 1))}. Подарки «2+1», «1+1» и промокоды на них не действуют.` }
     : promo
       ? { b: "Акция «1+1»", t: `К каждой оплаченной модели одна в подарок. Одна модель ${rub(paidPrice(pr, 1))}.` }
       : { b: "Подарок по «2+1»", t: `Возьмите две модели за ${rub(paidPrice(pr, 2))}, и третья будет бесплатно.` };
 
   return (
     <div className="inner-page">
+      <button type="button" className="text-link back-link model-back" onClick={back}><ArrowLeft size={16} aria-hidden="true" /> {canBack ? "Назад" : "К моделям"}</button>
       <nav className="breadcrumbs" aria-label="Навигация">
         <Link href="/">Каталог</Link><span aria-hidden="true">/</span>
         {cat ? <Link href={categoryHref(cat)}>{cat.name}</Link> : <span>{kindName(m, cats)}</span>}<span aria-hidden="true">/</span>
@@ -53,7 +65,7 @@ export default function ModelView({ initial }) {
             </span>
             <FavButton m={m} />
           </div>
-          {photos.length > 0 && (
+          {photos.length > 1 && (
             <div className="thumbs" role="group" aria-label="Изображения">
               {shots.map((p, i) => (
                 <button key={i} type="button" aria-pressed={shot === i} aria-label={p ? `Фото ${i + 1}` : "Схема модели"} onClick={() => setShot(i)}>
@@ -93,8 +105,8 @@ export default function ModelView({ initial }) {
             <div className="detail-spec"><dt>Получение</dt><dd><Link href="/delivery">цифровой товар: ссылка на файлы {m.free ? "сразу после оформления" : "сразу после оплаты"}</Link></dd></div>
           </dl>
 
-          {!m.free && <div className={"gift-note" + (promo && !isBox ? " on" : "")}>
-            {isBox ? <Sparkles size={20} aria-hidden="true" /> : <Gift size={20} aria-hidden="true" />}
+          {!m.free && <div className={"gift-note" + (promo && !isBox && !solo ? " on" : "")}>
+            {isBox || solo ? <Sparkles size={20} aria-hidden="true" /> : <Gift size={20} aria-hidden="true" />}
             <span><b>{giftText.b}</b><small>{giftText.t}</small></span>
           </div>}
 

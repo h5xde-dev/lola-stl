@@ -6,7 +6,8 @@ import { fmtDay, models, rub } from "@/lib/format";
 
 // Полоса акции и линейка цен над каталогом.
 export default function Tiers() {
-  const { s, promo: p } = useStore();
+  const { s, promo: p, cats } = useStore();
+  const solo = cats.filter(c => c.pricing !== "box" && c.gifts === false).map(c => c.name.toLowerCase());
   const pr = s.prices;
   const rows = [1, 2, 4, 6].map(a => [a, p ? a : Math.floor(a / 2), paidPrice(pr, a)]);
   return (
@@ -34,7 +35,7 @@ export default function Tiers() {
           : <div className="tier"><span className="tier-n">8+ <span className="g">+ 50%</span></span><span className="tier-sub">оплаченных моделей</span><span className="tier-p">{rub(pr.per8)} за модель</span></div>}
         <div className="tiers-foot">
           <span>{`Боксы: 1 — ${rub(pr.box[1])}, 2 — ${rub(pr.box[2])}, 3 — ${rub(pr.box[3])}, от 4 — ${rub(pr.box4)} за штуку`}</span>
-          <span>Боксы продаются отдельно: акции, подарки и промокоды на них не действуют</span>
+          <span>{solo.length ? `Боксы и ${solo.join(", ")} продаются отдельно` : "Боксы продаются отдельно"}: акции, подарки и промокоды на них не действуют</span>
         </div>
       </div>
     </details>

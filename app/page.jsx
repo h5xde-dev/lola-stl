@@ -21,6 +21,9 @@ const MARQUEE = ["Авторские STL-модели", "Шёлковый PLA", 
 
 export default async function Home() {
   const [list, h] = await Promise.all([getModels(), getHome()]);
+  const sec = h.sections;
+  // Галерея «Из мастерской» видна, только если включена и в ней есть фото
+  const showWorks = sec.works && h.gallery.length > 0;
   const [main, s1, s2] = h.hero;
   return (
     <>
@@ -46,8 +49,8 @@ export default async function Home() {
             <h1>{h.title}{h.titleEm && <><br /><em>{h.titleEm}</em></>}</h1>
             <p>{h.text}</p>
             <div className="hero-cta">
-              <Link href="#catalog" className="button button-dark">Выбрать модель <ArrowRight size={17} /></Link>
-              <Link href="#works" className="button button-outline">Смотреть отпечатки</Link>
+              <a href="#catalog" className="button button-dark">Выбрать модель <ArrowRight size={17} /></a>
+              {showWorks && <a href="#works" className="button button-outline">Смотреть отпечатки</a>}
             </div>
             <div className="hero-note">
               <span className="hero-avatar" aria-hidden="true">L</span>
@@ -68,7 +71,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="marquee" aria-hidden="true">
+      {sec.marquee && <div className="marquee" aria-hidden="true">
         <div className="marquee-track">
           {[0, 1].map(k => (
             <div key={k} style={{ display: "flex", gap: 34 }}>
@@ -76,20 +79,20 @@ export default async function Home() {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
-      <div className="wrap" style={{ marginTop: 28 }}>
+      {sec.benefits && <div className="wrap" style={{ marginTop: 28 }}>
         <section className="benefit-row" aria-label="Почему здесь удобно">
           <div><span className="benefit-icon"><Download size={18} /></span><span><b>Файлы сразу</b><small>Ссылки открываются после оплаты</small></span></div>
           <div><span className="benefit-icon"><MailCheck size={18} /></span><span><b>Без регистрации</b><small>Чек и ссылки придут на email</small></span></div>
           <div><span className="benefit-icon"><Gift size={18} /></span><span><b>Подарки к заказу</b><small>За каждые 2 модели третья бесплатно</small></span></div>
         </section>
-      </div>
+      </div>}
 
-      <section className="wrap section works" id="works" aria-labelledby="works-h" style={{ scrollMarginTop: 90 }}>
+      {showWorks && <section className="wrap section works" id="works" aria-labelledby="works-h" style={{ scrollMarginTop: 90 }}>
         <div className="section-heading">
           <div><span className="eyebrow">Из мастерской</span><h2 id="works-h">{h.galleryTitle}</h2></div>
-          <Link href="#catalog" className="text-link">К моделям <ArrowRight size={16} /></Link>
+          <a href="#catalog" className="text-link">К моделям <ArrowRight size={16} /></a>
         </div>
         <div className="gallery-grid">
           {h.gallery.map((g, i) => {
@@ -101,7 +104,7 @@ export default async function Home() {
             return g.href ? <Link key={i} href={g.href} className={cls}>{inner}</Link> : <div key={i} className={cls}>{inner}</div>;
           })}
         </div>
-      </section>
+      </section>}
 
       <section className="wrap section" id="catalog" style={{ scrollMarginTop: 90 }}>
         <div className="section-heading">
@@ -110,7 +113,7 @@ export default async function Home() {
         <Catalog />
       </section>
 
-      <div className="wrap">
+      {sec.editorial && <div className="wrap">
         <section className="editorial" aria-labelledby="how-h">
           <div className="editorial-image"><Image src={h.editorial.src} alt={h.editorial.alt || ""} fill sizes="(max-width: 640px) 100vw, 50vw" /></div>
           <div className="editorial-copy">
@@ -121,10 +124,10 @@ export default async function Home() {
               <li><b>Оплатите картой или по СБП</b><span>Чек придёт на email. Аккаунт создавать не нужно.</span></li>
               <li><b>Скачайте файлы</b><span>Ссылки появятся в личном кабинете и придут письмом. В Telegram их пришлёт бот.</span></li>
             </ol>
-            <Link href="#catalog" className="text-link">Выбрать модель <ArrowRight size={16} /></Link>
+            <a href="#catalog" className="text-link">Выбрать модель <ArrowRight size={16} /></a>
           </div>
         </section>
-      </div>
+      </div>}
     </>
   );
 }

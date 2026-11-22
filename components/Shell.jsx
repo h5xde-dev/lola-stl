@@ -2,7 +2,7 @@
 import { companyLine } from "@/lib/content";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useServerQuote, useStore } from "./Store";
 import Effects from "./Effects";
@@ -100,6 +100,9 @@ export default function Shell({ children, demo = true }) {
   const path = usePathname(), router = useRouter();
   const adm = path.startsWith("/admin");
   const cls = [s.mode === "tg" && !adm ? "tg" : "", adm ? "is-admin" : ""].join(" ").trim();
+  // Сколько страниц сайта открыто в этой вкладке: по нему кнопка «Назад» на странице модели решает,
+  // вернуться в историю или открыть каталог (если пришли по прямой ссылке).
+  useEffect(() => { try { sessionStorage.setItem("lola-nav", String(+(sessionStorage.getItem("lola-nav") || 0) + 1)); } catch {} }, [path]);
 
   return (
     <div className={cls}>
