@@ -4,6 +4,8 @@
 // 2. Раз в минуту сервер сам спрашивает у банка статус неоплаченных заказов — на случай, если
 //    уведомление об оплате не пришло, а покупатель закрыл страницу. Раз в 10 минут — заодно
 //    заказы, отменённые по таймеру за последнюю неделю (платёжная ссылка Точки живёт 7 дней).
+// 3. Раз в 6 часов удаляются данные с истёкшим сроком хранения (Политика ПДн): неоплаченные заказы
+//    старше 30 дней, IP и браузер в журнале скачиваний, журнал писем, использованные ссылки для входа.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production") return;
   const { sign } = await import("./lib/server/auth.js");
@@ -12,5 +14,8 @@ export async function register() {
   setTimeout(() => call("/api/internal/revalidate", "revalidate"), 2000);
   const every = Number(process.env.PAYMENT_CHECK_SECONDS || 60) * 1000;
   let tick = 0;
+  const cleanup = () => call("/api/internal/cleanup", "cleanup");
+  setTimeout(cleanup, 60000);
+  setInterval(cleanup, Number(process.env.CLEANUP_HOURS || 6) * 3600000).unref?.();
   setInterval(() => { tick++; call(tick % 10 === 0 ? "/api/internal/payments?all=1" : "/api/internal/payments", "payments"); }, every).unref?.();
 }
