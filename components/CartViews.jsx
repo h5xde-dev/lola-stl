@@ -209,12 +209,16 @@ export function CheckoutView() {
 export function ReturnView() {
   const { set, setFlash, loadMe } = useStore();
   const router = useRouter();
-  const code = useSearchParams().get("order") || "";
+  const params = useSearchParams();
+  const code = params.get("order") || "", t = params.get("t") || "";
   const [st, setSt] = useState("wait");
   useEffect(() => {
     let alive = true, tries = 0;
     const tick = async () => {
-      const { ok, data } = await api(`/api/orders/${encodeURIComponent(code)}`);
+      // С токеном заказ открывается в любом браузере — даже если после приложения банка
+      // покупатель вернулся не туда, где оформлял заказ.
+      const r = t ? await api(`/api/o/${encodeURIComponent(t)}`) : await api(`/api/orders/${encodeURIComponent(code)}`);
+      const ok = r.ok, data = t && r.ok ? { status: r.data.order ? "paid" : r.data.canceled ? "canceled" : "pending" } : r.data;
       if (!alive) return;
       if (ok && ["paid", "review", "revoked"].includes(data.status)) {
         set({ cart: [], code: "" }); setFlash(code); await loadMe(); router.replace("/account"); return;
@@ -232,10 +236,11 @@ export function ReturnView() {
       <div className="page-title"><span className="eyebrow">Заказ {code}</span>
         <h1>{st === "canceled" ? "Оплата отменена" : st === "missing" ? "Заказ не найден" : "Проверяем оплату…"}</h1>
         <p>{st === "canceled" ? "Деньги не списаны. Корзина сохранилась — можно попробовать ещё раз."
-          : st === "slow" ? "Подтверждение задерживается. Ссылка на файлы придёт на email сразу после оплаты — эту страницу можно закрыть."
+          : st === "slow" ? (t ? "Подтверждение задерживается. Сохраните ссылку на заказ ниже: по ней файлы откроются сразу после оплаты, в любом браузере." : "Подтверждение задерживается. Ссылка на файлы придёт на email сразу после оплаты — эту страницу можно закрыть.")
           : st === "missing" ? "Откройте заказ по ссылке из письма."
           : "Обычно это занимает несколько секунд. Не закрывайте страницу."}</p></div>
       {st === "wait" && <div className="skeleton" aria-busy="true"><span className="spinner" /></div>}
+      {st === "slow" && t && <p className="order-saved-link"><Link href={`/o/${t}`}>{`${location.origin}/o/${t}`}</Link></p>}
       {st !== "wait" && <div className="actions"><Link href="/cart" className="button button-dark">В корзину</Link><Link href="/account" className="button button-outline">Личный кабинет</Link></div>}
     </div>
   );
@@ -333,10 +338,18 @@ export function OrderLinkView({ token }) {
   const load = useCallback(async () => {
     const { ok, data } = await api(`/api/o/${encodeURIComponent(token)}`);
     if (!ok) setSt({ state: "missing", error: data.error });
+    else if (data.canceled) setSt({ state: "canceled" });
     else if (data.pending) setSt({ state: "pending", url: data.url });
     else { setSt({ state: "ok", order: data.order }); loadMe(); }
   }, [token, loadMe]);
   useEffect(() => { load(); }, [load]);
+  // Пока заказ ждёт оплаты, проверяем раз в 4 секунды (минуты три): банк мог ещё не подтвердить платёж
+  useEffect(() => {
+    if (st.state !== "pending") return;
+    let n = 0;
+    const id = setInterval(() => { if (++n > 45) clearInterval(id); else load(); }, 4000);
+    return () => clearInterval(id);
+  }, [st.state, load]);
   const dl = useDownload(load);
   return (
     <div className="inner-page">
@@ -344,7 +357,8 @@ export function OrderLinkView({ token }) {
         <p>Эта страница всегда открывается по ссылке из письма. Все заказы — в <Link href="/account">личном кабинете</Link>.</p></div>
       {st.state === "load" && <div className="skeleton" aria-busy="true">Открываем заказ…</div>}
       {st.state === "missing" && <div className="empty-state">{st.error || "Заказ не найден."} <Link href="/account">Личный кабинет</Link></div>}
-      {st.state === "pending" && <div className="empty-state">Заказ ещё не оплачен. {st.url && <a href={st.url}>Перейти к оплате</a>}</div>}
+      {st.state === "pending" && <div className="empty-state">Ждём подтверждения оплаты — страница обновится сама. Если вы ещё не оплатили: {st.url && <a href={st.url}>перейти к оплате</a>}</div>}
+      {st.state === "canceled" && <div className="empty-state">Оплата этого заказа не прошла, деньги не списаны. <Link href="/cart">Вернуться в корзину</Link></div>}
       {st.order && <OrderBlock o={st.order} dl={dl} showLink={false} />}
     </div>
   );

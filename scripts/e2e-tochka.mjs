@@ -92,7 +92,7 @@ try {
   const sum = op.Items.reduce((a, i) => a + i.amount * i.quantity, 0);
   ok(op.amount === co.total && Math.abs(sum - co.total) < 0.001 && op.Items.every(i => i.amount > 0), `позиции чека (${op.Items.length}) в сумме = итог ${co.total} ₽, нулевых строк нет`);
   ok(op.paymentMode.join() === "sbp" && op.Client.email === "buyer@example.ru" && op.customerCode === "300000092" && op.merchantId === "200000000001056", "в ссылке: способ СБП, email для чека, код клиента и торговая точка");
-  ok(op.redirectUrl.endsWith(`/checkout/return?order=${co.code}`) && op.Items[0].paymentObject === "service" && op.Items[0].vatType === "none", "адрес возврата и признаки чека");
+  ok(/\/checkout\/return\?order=L-\d+&t=[\w-]{16,}$/.test(op.redirectUrl) && op.redirectUrl.includes(co.code) && op.Items[0].paymentObject === "service" && op.Items[0].vatType === "none", "адрес возврата и признаки чека");
 
   // поддельный вебхук не оплачивает заказ, даже если платёж оплачен
   op.status = "APPROVED";
@@ -114,7 +114,16 @@ try {
   const op2 = Object.values(ops).find(o => o.paymentLinkId === co2.code);
   st = await j(await Bx.f(`/api/orders/${co2.code}`));
   ok(st.status === "pending" && op2.paymentMode.join() === "card", "пока платёж не прошёл, заказ ждёт оплаты");
+  // покупатель вернулся из приложения банка в другой браузер (без куки заказа):
+  // по токену из адреса возврата заказ находится, а после оплаты файлы скачиваются
+  const tok = new URL(op2.redirectUrl).searchParams.get("t");
+  const Other = jar();
+  let o2 = await j(await Other.f(`/api/o/${tok}`));
+  ok(o2.pending && o2.code === co2.code, "по ссылке возврата в другом браузере видно, что заказ ждёт оплаты");
   op2.status = "APPROVED";
+  o2 = await j(await Other.f(`/api/o/${tok}`));
+  r = await Other.f("/api/download", { method: "POST", body: JSON.stringify({ order: co2.code, model: "p06" }) });
+  ok(o2.order?.id === co2.code && r.status === 200, "в другом браузере оплата подтверждается по ссылке возврата и файл скачивается");
   st = await j(await Bx.f(`/api/orders/${co2.code}`));
   ok(st.status === "paid", "без вебхука оплата подтверждается запросом статуса в Точку");
 

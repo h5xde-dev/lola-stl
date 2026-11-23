@@ -3,7 +3,7 @@ import { companyLine } from "@/lib/content";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronLeft, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
+import { ChevronLeft, Menu, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
 import { useServerQuote, useStore } from "./Store";
 import Effects from "./Effects";
 import TelegramBridge from "./TelegramBridge";
@@ -70,9 +70,11 @@ function Header() {
           <Link href="/#catalog" aria-current={home && s.filter === "new" ? "page" : undefined} onClick={() => { set({ filter: "new", q: "" }); setOpen(false); }}>Новинки</Link>
           {s.models.some(m => m.free && !m.hidden && !m.deleted) && <Link href="/free" aria-current={path === "/free" ? "page" : undefined} onClick={() => setOpen(false)}>Бесплатно</Link>}
           {s.hasArticles && <Link href="/blog" aria-current={path.startsWith("/blog") ? "page" : undefined} onClick={() => setOpen(false)}>Статьи</Link>}
+          <Link href="/account" className="nav-account" aria-current={path === "/account" ? "page" : undefined} onClick={() => setOpen(false)}>Личный кабинет</Link>
         </nav>
         <div className="header-actions">
           <Link href="/account" className="header-link" aria-current={path === "/account" ? "page" : undefined}>Личный кабинет</Link>
+          <Link href="/account" className="icon-btn account-icon" aria-label="Личный кабинет" aria-current={path === "/account" ? "page" : undefined}><UserRound size={20} aria-hidden="true" /></Link>
           <Link href="/cart" className="bag-link" aria-label={`Корзина: ${models(Q.count)}${Q.count ? ", " + rub(Q.total) : ""}`}>
             <ShoppingBag size={19} aria-hidden="true" /><span>Корзина</span><b className={Q.count ? "on" : ""}>{Q.count}</b>
             {Q.count > 0 && <span className="sum">{rub(Q.total)}</span>}
