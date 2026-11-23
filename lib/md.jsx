@@ -16,8 +16,9 @@ function inline(text, key = "i") {
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const k = `${key}-${n++}`;
-    if (m[2]) out.push(<strong key={k}>{m[2]}</strong>);
-    else if (m[3]) out.push(<em key={k}>{m[3]}</em>);
+    // внутри жирного и курсива тоже бывают ссылки: «**в [личном кабинете](/account)**»
+    if (m[2]) out.push(<strong key={k}>{inline(m[2], k)}</strong>);
+    else if (m[3]) out.push(<em key={k}>{inline(m[3], k)}</em>);
     else if (m[4]) out.push(<code key={k}>{m[4]}</code>);
     else {
       const url = safeUrl(m[6]);
