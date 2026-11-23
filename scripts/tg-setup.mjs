@@ -16,6 +16,6 @@ await call("setChatMenuButton", { menu_button: { type: "web_app", text: "Маг�
 await call("setWebhook", { url: `${site}/api/tg/webhook`, secret_token: whSecret, allowed_updates: ["message"], drop_pending_updates: true });
 await call("setMyCommands", { commands: [{ command: "start", description: "Открыть магазин" }, { command: "purchases", description: "Мои покупки и файлы" }] });
 await call("setMyShortDescription", { short_description: "Авторские STL-модели кашпо для 3D-печати. Файлы сразу после оплаты." });
-await call("setMyDescription", { description: "lola.stl — авторские STL-модели кашпо и лотков для рассады.\n\n• За каждые 2 модели — третья в подарок\n• Файлы сразу после оплаты, без регистрации\n• Отпечатки можно продавать\n\nНажмите «Магазин», чтобы выбрать модели." });
+await call("setMyDescription", { description: "lola.stl — авторские STL-модели кашпо и лотков для рассады.\n\n• За каждые 2 кашпо — третье в подарок\n• Файлы сразу после оплаты, без регистрации\n• Отпечатки можно продавать\n\nНажмите «Магазин», чтобы выбрать модели." });
 const info = await (await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`)).json();
 console.log("вебхук:", info.result?.url, "| ошибок:", info.result?.last_error_message || "нет");
