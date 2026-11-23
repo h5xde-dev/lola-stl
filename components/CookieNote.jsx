@@ -14,7 +14,7 @@ export default function CookieNote() {
   if (!show) return null;
   const ok = () => { try { localStorage.setItem(KEY, "1"); } catch {} setShow(false); };
   return (
-    <div className="cookie-note site-only" role="region" aria-label="Уведомление о cookie">
+    <div className="cookie-note site-only" data-nosnippet role="region" aria-label="Уведомление о cookie">
       <p>Сайт использует только технические cookie — без них не работают личный кабинет и доступ к купленным файлам. Аналитики и рекламы нет. <Link href="/privacy">Подробнее</Link></p>
       <button type="button" className="button button-dark" onClick={ok}>Понятно</button>
     </div>

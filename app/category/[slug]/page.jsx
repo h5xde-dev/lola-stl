@@ -17,7 +17,9 @@ export async function generateMetadata({ params }) {
   const c = await getCategory(slug);
   if (!c) return { title: "Категория", robots: { index: false, follow: false } };
   const title = c.seoTitle || `${c.name} — STL-модели для 3D-печати`;
-  const description = c.seoDesc || c.desc;
+  // Короткое описание категории Google заменяет текстом со страницы — дополняем его общим
+  const base = (c.seoDesc || c.desc || "").trim().replace(/\.$/, "");
+  const description = base.length >= 90 ? (c.seoDesc || c.desc) : `${base ? base + ". " : ""}Авторские STL-модели для 3D-печати от lola.stl: файлы сразу после оплаты, напечатанные изделия можно продавать.`;
   return {
     title,
     description,

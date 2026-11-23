@@ -1,7 +1,7 @@
 import ModelView from "@/components/ModelView";
 import { notFound } from "next/navigation";
 import JsonLd from "@/lib/jsonld";
-import { catOf, kindGen, kindName } from "@/lib/models";
+import { catOf, kindGen, kindName, modelAbout } from "@/lib/models";
 import { getCategories, getModel } from "@/lib/server/catalog";
 import { getPrices } from "@/lib/server/catalog";
 import { productLd } from "@/lib/schema";
@@ -21,7 +21,9 @@ export async function generateMetadata({ params }) {
   const cats = await getCategories();
   const title = m.seoTitle || `${m.name} — STL-модель ${kindGen(m, cats)} для 3D-печати`;
   const extra = [m.dims && `Размер ${m.dims}`, m.print].filter(Boolean).join(", ");
-  const description = m.seoDesc || `${m.desc} ${extra ? extra + ". " : ""}${m.free ? `Бесплатный файл STL ${m.mb} МБ — сразу на email` : `Файл STL ${m.mb} МБ сразу после оплаты`}, продажа отпечатков разрешена.`;
+  const description = m.seoDesc || (m.desc?.trim()
+    ? `${m.desc.trim()} ${extra ? extra + ". " : ""}${m.free ? `Бесплатный файл STL ${m.mb} МБ — сразу на email` : `Файл STL ${m.mb} МБ сразу после оплаты`}, продажа отпечатков разрешена.`
+    : `${modelAbout(m, cats)}${extra ? " " + extra + "." : ""}`);
   const prices = await getPrices();
   const price = m.free ? 0 : m.cat === "box" ? boxPrice(prices, 1) : paidPrice(prices, 1);
   return {
@@ -56,7 +58,7 @@ export default async function ModelPage({ params }) {
       <JsonLd data={{
         "@context": "https://schema.org",
         "@graph": [
-          productLd(m, { price, categoryName: cat?.name || kindName(m, cats) }),
+          productLd({ ...m, desc: modelAbout(m, cats) }, { price, categoryName: cat?.name || kindName(m, cats) }),
           {
             "@type": "BreadcrumbList",
             itemListElement: [

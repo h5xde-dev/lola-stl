@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Check, Gift, PenTool, Sparkles } from "lucide-re
 import ModelArt from "./ModelArt";
 import ProductCard, { FavButton, useOffer } from "./ProductCard";
 import { useStore } from "./Store";
-import { catOf, categoryHref, kindName, related } from "@/lib/models";
+import { catOf, categoryHref, kindName, related, modelAbout } from "@/lib/models";
 import { paidPrice } from "@/lib/pricing";
 import { rub, zipMb } from "@/lib/format";
 
@@ -92,7 +92,7 @@ export default function ModelView({ initial }) {
               ? <div className="detail-price gift">0 ₽ <small>пойдёт в подарок</small></div>
               : <div className="detail-price">{hasSame ? "+" : ""}{rub(cost)} {hasSame && <small>к сумме заказа</small>}</div>}
 
-          {m.desc && <p>{m.desc}</p>}
+          <p>{modelAbout(m, cats)}</p>
 
           <dl className="detail-specs">
             <div className="detail-spec"><dt>{(m.files || []).length > 1 ? `Файлы · ${m.files.length}` : "Формат файла"}</dt>

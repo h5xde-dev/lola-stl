@@ -45,8 +45,8 @@ function ProtoBar({ demo }) {
 function Announcement() {
   const { s, promo } = useStore();
   return promo
-    ? <div className="announcement promo"><Sparkles size={14} aria-hidden="true" /> Акция «1+1»: к каждой оплаченной модели одна в подарок <span className="dim">—</span> <span className="tail">до {fmtDay(s.promoEnd)}</span></div>
-    : <div className="announcement"><Sparkles size={14} aria-hidden="true" /> Модели для тех, кто любит создавать <span className="dim">—</span> <span className="tail">файлы сразу после оплаты</span></div>;
+    ? <div className="announcement promo" data-nosnippet><Sparkles size={14} aria-hidden="true" /> Акция «1+1»: к каждой оплаченной модели одна в подарок <span className="dim">—</span> <span className="tail">до {fmtDay(s.promoEnd)}</span></div>
+    : <div className="announcement" data-nosnippet><Sparkles size={14} aria-hidden="true" /> Модели для тех, кто любит создавать <span className="dim">—</span> <span className="tail">файлы сразу после оплаты</span></div>;
 }
 
 
@@ -123,7 +123,7 @@ export default function Shell({ children, demo = true }) {
             <Link href="/account" className="tg-x">Покупки</Link>
           </div>
           <main>{children}</main>
-          <footer className="site-footer site-only">
+          <footer className="site-footer site-only" data-nosnippet>
             <div className="wrap footer-in">
               <Brand sub="" />
               <p>Файлы, которые превращаются в вещи.</p>
