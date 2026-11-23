@@ -213,7 +213,7 @@ ok(contacts.includes("shop@example.ru") && contacts.includes("+7 900 000-00-00")
 const payPage = await (await jar().f("/payment")).text();
 ok(/PCI DSS/.test(payPage) && payPage.includes("СБП") && payPage.includes("3-D Secure"), "страница оплаты: способы, 3-D Secure, PCI DSS");
 const homeF = await (await jar().f("/")).text();
-ok(["/offer", "/privacy", "/payment", "/delivery", "/refund", "/contacts"].every(h => homeF.includes(`href="${h}"`)) && homeF.includes("ОГРНИП 304500116000157") && !homeF.includes("[ФИО]"), "подвал: ссылки на документы и полные реквизиты");
+ok(["/offer", "/privacy", "/payment", "/delivery", "/refund", "/contacts"].every(h => homeF.includes(`href="${h}"`)) && homeF.includes("ОГРНИП 304500116000157") && !homeF.includes("[ФИО]") && !homeF.includes("г. Москва"), "подвал: ссылки на документы и реквизиты без адреса");
 const sm = await (await jar().f("/sitemap.xml")).text();
 ok(sm.includes("/offer") && sm.includes("/refund") && !sm.includes("/consent"), "документы в карте сайта (кроме согласия)");
 ok((await jar().f("/api/tochka/webhook", { method: "POST", headers: { "Content-Type": "text/plain" }, body: "a.b.c" })).status === 200, "вебхук Точки с неверной подписью отвечает 200 и ничего не делает");

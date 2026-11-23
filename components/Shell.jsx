@@ -132,7 +132,7 @@ export default function Shell({ children, demo = true }) {
                 <Link href="/offer">Оферта и лицензия</Link><Link href="/privacy">Политика конфиденциальности</Link><Link href="/payment">Оплата и безопасность</Link><Link href="/delivery">Получение заказа</Link><Link href="/refund">Возврат</Link>
               </nav>
               <PayLogos small />
-              <small className="footer-req">© {new Date().getFullYear()} lola.stl{companyLine(s.company || {}) ? " · " + companyLine(s.company || {}) : ""}{s.company?.address ? " · " + s.company.address : ""}{s.company?.email ? " · " + s.company.email : ""}{s.company?.phone ? " · " + s.company.phone : ""}</small>
+              <small className="footer-req">© {new Date().getFullYear()} lola.stl{companyLine(s.company || {}) ? " · " + companyLine(s.company || {}) : ""}{s.company?.email ? " · " + s.company.email : ""}{s.company?.phone ? " · " + s.company.phone : ""}</small>
             </div>
           </footer>
           {!adm && <TgMainButton />}
