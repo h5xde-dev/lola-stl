@@ -205,7 +205,9 @@ const legal = ["offer", "privacy", "consent", "payment", "delivery", "refund", "
 for (const p of legal) ok((await jar().f("/" + p)).status === 200, `страница /${p} открывается`);
 await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ company: { name: "ИП Тестова Анна Сергеевна", inn: "500100732259", ogrn: "304500116000157", address: "г. Москва", email: "shop@example.ru", phone: "+7 900 000-00-00", telegram: "@lola_stl", hours: "" } }) });
 const offer = await (await jar().f("/offer")).text();
-ok(offer.includes("Индивидуальный предприниматель Тестова Анна Сергеевна") && offer.includes("500100732259") && offer.includes("304500116000157") && offer.includes("ст. 1301"), "оферта с реквизитами из админки");
+ok(offer.includes("745504725063") && offer.includes("простой (неисключительной) лицензии") && offer.includes("12 месяцев") && offer.includes("Редакция от 23 ноября 2026"), "оферта — текст владелицы, редакция от 23 ноября");
+const pol = await (await jar().f("/privacy")).text(), cons = await (await jar().f("/consent")).text(), refund = await (await jar().f("/refund")).text();
+ok(pol.includes("ООО «Банк Точка»") && pol.includes("ООО «ЦИБ»") && cons.includes("Отзыв согласия") && refund.includes("семи дней"), "политика, согласие и условия возврата по новым документам");
 const contacts = await (await jar().f("/contacts")).text();
 ok(contacts.includes("shop@example.ru") && contacts.includes("+7 900 000-00-00") && contacts.includes("г. Москва"), "контакты: email, телефон, адрес");
 const payPage = await (await jar().f("/payment")).text();

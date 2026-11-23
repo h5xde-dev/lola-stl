@@ -191,7 +191,7 @@ export function CheckoutView() {
           {errors.agree && <span className="err">{errors.agree}</span>}
           <label className="check-row"><input type="checkbox" name="pd" aria-invalid={!!errors.pd} /><span>Даю <Link href="/consent" target="_blank">согласие на обработку персональных данных</Link> в соответствии с <Link href="/privacy" target="_blank">политикой</Link></span></label>
           {errors.pd && <span className="err">{errors.pd}</span>}
-          <p className="terms-note">Модели — цифровой товар: файлы доступны сразу после оплаты. Деньги возвращаются, если файл повреждён или не соответствует описанию — <Link href="/refund" target="_blank">условия возврата</Link>.</p>
+          <p className="terms-note">Модели — цифровой товар: файлы доступны сразу после оплаты, скачивать их можно 12 месяцев со дня покупки. Отказаться от покупки можно в течение 7 дней — <Link href="/refund" target="_blank">условия возврата</Link>.</p>
           {errors.form && <span className="err">{errors.form}</span>}
           <button type="submit" className="button button-dark full site-only" disabled={busy || (!free && !methods.length)}>{busy ? "Создаём заказ…" : free ? <>Получить файлы <ArrowRight size={17} /></> : <>Оплатить {rub(Q.total)} <ArrowRight size={17} /></>}</button>
           {!free && methods.some(m => !m.test) && <p className="terms-note">Оплата проходит на защищённой странице банка — <Link href="/payment" target="_blank">о безопасности платежей</Link>{tg ? ". После оплаты вы вернётесь сюда" : ""}.</p>}
@@ -269,7 +269,7 @@ function LinkRequest() {
           <input id="lrEmail" type="email" placeholder="name@mail.ru" value={email} onChange={e => setEmail(e.target.value)} style={{ textTransform: "none", fontFamily: "var(--f-body)", letterSpacing: 0 }} />
           <button type="submit" className="mini-btn">Прислать ссылку</button>
         </div>
-        <p className="terms-note" style={{ marginTop: 8 }}>Нажимая «Прислать ссылку», вы соглашаетесь на обработку email по <Link href="/privacy">политике обработки персональных данных</Link>.</p>
+        <p className="terms-note" style={{ marginTop: 8 }}>Нажимая «Прислать ссылку», вы соглашаетесь на обработку email по <Link href="/privacy">политике в отношении обработки персональных данных</Link>.</p>
       </form>;
 }
 
@@ -289,7 +289,7 @@ function useDownload(after) {
   return { busy, download };
 }
 
-// Блок заказа: модели со скачиванием, постоянная ссылка на заказ и чек
+// Блок заказа: модели со скачиванием, срок доступа, личная ссылка на заказ и чек
 function OrderBlock({ o, dl, showLink = true }) {
   const { byId, toast, flash } = useStore();
   const { busy, download } = dl;
@@ -326,7 +326,7 @@ function OrderBlock({ o, dl, showLink = true }) {
           </div>
         );
       })}
-      <div className="order-foot"><span>Ссылка на заказ уникальная и постоянная — не пересылайте её. Передавать файлы третьим лицам запрещено лицензией.</span>{o.email && <span>Чек отправлен на {o.email}</span>}</div>
+      <div className="order-foot"><span>{o.until && !blocked ? <>Скачивание доступно до <b>{new Date(o.until).toLocaleDateString("ru-RU")}</b> — сохраните файлы на своих устройствах. </> : null}Ссылка на заказ личная — не пересылайте её. Передавать файлы третьим лицам запрещено лицензией.</span>{o.email && <span>Чек отправлен на {o.email}</span>}</div>
     </section>
   );
 }
