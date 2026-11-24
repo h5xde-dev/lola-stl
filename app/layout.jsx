@@ -39,15 +39,27 @@ export const viewport = { themeColor: "#090713", colorScheme: "dark", width: "de
 // каталог одинаковый для всех, корзина и покупки работают в браузере. Сохранение в админке сбрасывает кеш.
 export const revalidate = 300;
 
-// Совместимость с автопереводом браузера (Google Переводчик, Яндекс, Safari). Переводчик заменяет
-// текст страницы своими тегами <font>, и когда React потом убирает или вставляет этот текст,
-// браузер бросает NotFoundError — Next.js показывает «This page couldn’t load» на всём сайте.
-// Здесь удаление и вставка рядом с уже подменённым узлом пропускаются вместо ошибки
-// (известный обход: github.com/facebook/react/issues/11538). Без переводчика ничего не меняется.
-const TRANSLATE_SAFE = `(function(){if(typeof Node!=="function"||!Node.prototype||Node.prototype.__lolaSafe)return;
-var P=Node.prototype,rm=P.removeChild,ins=P.insertBefore;P.__lolaSafe=1;
-P.removeChild=function(c){if(c&&c.parentNode!==this){if(c.parentNode)c.parentNode.removeChild(c);return c}return rm.apply(this,arguments)};
-P.insertBefore=function(n,r){if(r&&r.parentNode!==this)return this.appendChild(n);return ins.apply(this,arguments)};})();`;
+// Совместимость с автопереводом браузера (Google Переводчик и др.). Переводчик заменяет текстовые узлы
+// страницы своими тегами <font>. React об этом не знает и потом:
+//  - удаляет старый текстовый узел — браузер бросает NotFoundError, Next.js показывает «This page couldn’t load»;
+//  - меняет текст узла, которого уже нет на странице, — изменение не видно, а новый текст добавляется рядом
+//    со старым переводом («700 ₽ 0 ₽ 500 ₽»).
+// Здесь наблюдатель запоминает, каким тегом переводчик заменил каждый текстовый узел, и удаление,
+// вставка и смена текста перенаправляются на этот тег. Переводчик затем переводит новый текст сам.
+// Без переводчика замен нет, и всё работает как обычно.
+const TRANSLATE_SAFE = `(function(){if(typeof Node!=="function"||!window.MutationObserver||Node.prototype.__lolaSafe)return;
+var P=Node.prototype,rm=P.removeChild,ins=P.insertBefore,map=new WeakMap();P.__lolaSafe=1;
+function sub(n){var f=map.get(n),i=0;while(f&&!f.parentNode&&map.has(f)&&i++<5)f=map.get(f);return f}
+function isF(n){return n&&n.nodeType===1&&n.nodeName==="FONT"}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var r=rs[i];if(!r.removedNodes.length)continue;
+for(var j=0;j<r.removedNodes.length;j++){var t=r.removedNodes[j];if(t.nodeType!==3||map.has(t))continue;var f=null;
+for(var k=0;k<r.addedNodes.length;k++)if(isF(r.addedNodes[k])){f=r.addedNodes[k];break}
+if(!f&&isF(r.previousSibling))f=r.previousSibling;if(!f&&isF(r.nextSibling))f=r.nextSibling;if(f)map.set(t,f)}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+P.removeChild=function(c){if(c&&c.parentNode!==this){var f=sub(c);if(f&&f.parentNode)rm.call(f.parentNode,f);return c}return rm.apply(this,arguments)};
+P.insertBefore=function(n,r){if(r&&r.parentNode!==this){var f=sub(r);return f&&f.parentNode===this?ins.call(this,n,f):this.appendChild(n)}return ins.apply(this,arguments)};
+var d=Object.getOwnPropertyDescriptor(P,"nodeValue");if(d&&d.set){Object.defineProperty(P,"nodeValue",{configurable:true,enumerable:d.enumerable,get:d.get,
+set:function(v){d.set.call(this,v);if(this.nodeType===3&&!this.parentNode){var f=sub(this);if(f&&f.parentNode)f.textContent=v}}})}})();`;
 
 export default async function RootLayout({ children }) {
   const [initial, seo] = await Promise.all([publicState(), getSeo()]);
