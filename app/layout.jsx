@@ -39,10 +39,21 @@ export const viewport = { themeColor: "#090713", colorScheme: "dark", width: "de
 // каталог одинаковый для всех, корзина и покупки работают в браузере. Сохранение в админке сбрасывает кеш.
 export const revalidate = 300;
 
+// Совместимость с автопереводом браузера (Google Переводчик, Яндекс, Safari). Переводчик заменяет
+// текст страницы своими тегами <font>, и когда React потом убирает или вставляет этот текст,
+// браузер бросает NotFoundError — Next.js показывает «This page couldn’t load» на всём сайте.
+// Здесь удаление и вставка рядом с уже подменённым узлом пропускаются вместо ошибки
+// (известный обход: github.com/facebook/react/issues/11538). Без переводчика ничего не меняется.
+const TRANSLATE_SAFE = `(function(){if(typeof Node!=="function"||!Node.prototype||Node.prototype.__lolaSafe)return;
+var P=Node.prototype,rm=P.removeChild,ins=P.insertBefore;P.__lolaSafe=1;
+P.removeChild=function(c){if(c&&c.parentNode!==this){if(c.parentNode)c.parentNode.removeChild(c);return c}return rm.apply(this,arguments)};
+P.insertBefore=function(n,r){if(r&&r.parentNode!==this)return this.appendChild(n);return ins.apply(this,arguments)};})();`;
+
 export default async function RootLayout({ children }) {
   const [initial, seo] = await Promise.all([publicState(), getSeo()]);
   return (
     <html lang="ru" className={`${manrope.variable} ${unbounded.variable} ${mono.variable}`}>
+      <head><script dangerouslySetInnerHTML={{ __html: TRANSLATE_SAFE }} /></head>
       <body>
         <JsonLd data={{ "@context": "https://schema.org", "@graph": [organization(seo), website(seo)] }} />
         <StoreProvider initial={initial}>
