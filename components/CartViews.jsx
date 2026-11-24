@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, BadgePercent, Download, Gift, Info, Layers, Link
 import ModelArt from "./ModelArt";
 import ProductCard from "./ProductCard";
 import { api, useServerQuote, useStore } from "./Store";
-import { fmtDate, fmtDay, models, rub, zipMb } from "@/lib/format";
+import { fmtDate, fmtDay, models, plural, rub, zipMb } from "@/lib/format";
 import { modelHref } from "@/lib/models";
 import { PAY_METHODS } from "@/lib/payments";
 
@@ -288,6 +288,15 @@ function LinkRequest() {
 }
 
 // Скачивание: сервер проверяет доступ к заказу, пишет журнал и выдаёт ссылку на файл на 5 минут.
+// Начать скачивание. В мини-приложении Telegram — его встроенной загрузкой (или во внешнем браузере):
+// внутри Telegram переход по ссылке на файл часто ничего не делает.
+function startDownload(url, name) {
+  const abs = new URL(url, location.href).href, w = tgApp();
+  if (w?.downloadFile) { try { w.downloadFile({ url: abs, file_name: name }); return; } catch {} }
+  if (w?.openLink) { try { w.openLink(abs); return; } catch {} }
+  location.href = abs;
+}
+
 function useDownload(after) {
   const { toast } = useStore();
   const [busy, setBusy] = useState("");
@@ -296,19 +305,31 @@ function useDownload(after) {
     const { ok, data } = await api("/api/download", { method: "POST", body: JSON.stringify({ order: o.id, model: id, file }) });
     setBusy("");
     if (!ok) { toast(data.error || "Не получилось скачать. Попробуйте ещё раз."); after?.(); return; }
-    location.href = data.url;
+    startDownload(data.url, data.name || `${id}_${o.id}.stl`);
     toast("Скачивание началось");
     setTimeout(() => after?.(), 800);
   };
-  return { busy, download };
+  // Все файлы заказа одним ZIP-архивом
+  const downloadAll = async o => {
+    setBusy(o.id + ":all");
+    const { ok, data } = await api("/api/download-all", { method: "POST", body: JSON.stringify({ order: o.id }) });
+    setBusy("");
+    if (!ok) { toast(data.error || "Не получилось скачать архив. Попробуйте ещё раз."); after?.(); return; }
+    startDownload(data.url, `lola.stl_${o.id}.zip`);
+    toast(`Скачивание архива началось: ${data.files} ${plural(data.files, ["файл", "файла", "файлов"])}, около ${data.mb} МБ`);
+    setTimeout(() => after?.(), 800);
+  };
+  return { busy, download, downloadAll };
 }
 
 // Блок заказа: модели со скачиванием, срок доступа, личная ссылка на заказ и чек
 function OrderBlock({ o, dl, showLink = true }) {
   const { byId, toast, flash } = useStore();
-  const { busy, download } = dl;
+  const { busy, download, downloadAll } = dl;
   const blocked = o.status === "revoked";
   const ids = o.items.filter(id => byId[id]);
+  const allFiles = ids.flatMap(id => byId[id].files?.length ? byId[id].files : [{ mb: byId[id].mb || 0 }]);
+  const allMb = Math.round(allFiles.reduce((a, f) => a + (f.mb || 0), 0));
   const copy = async () => {
     try { await navigator.clipboard.writeText(location.origin + o.link); toast("Ссылка на заказ скопирована"); }
     catch { toast("Не получилось скопировать — откройте заказ и скопируйте адрес из строки браузера"); }
@@ -323,6 +344,11 @@ function OrderBlock({ o, dl, showLink = true }) {
         </div>}
       </div>
       {blocked && <div className="order-alert"><Lock size={16} aria-hidden="true" /><span>{STATUS[o.status] || STATUS.revoked}</span></div>}
+      {!blocked && allFiles.length > 1 && <div className="order-all">
+        <button type="button" className="button button-dark" disabled={busy === o.id + ":all"} onClick={() => downloadAll(o)}>
+          <Download size={16} aria-hidden="true" /> {busy === o.id + ":all" ? "Готовим архив…" : "Скачать всё одним архивом"}</button>
+        <span>{allFiles.length} {plural(allFiles.length, ["файл", "файла", "файлов"])} · около {allMb >= 1024 ? `${(allMb / 1024).toFixed(1).replace(".", ",")} ГБ` : `${allMb} МБ`} · ZIP</span>
+      </div>}
       {ids.map(id => {
         const m = byId[id], files = m.files || [];
         const btn = (f, label) => {

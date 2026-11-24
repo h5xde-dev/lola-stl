@@ -1341,3 +1341,20 @@ body { background: var(--bg); }
 }
 @media (max-width: 640px) { .nav-account { display: block !important; } }
 .order-saved-link { margin: 0 0 18px; word-break: break-all; font-size: 14px; }
+
+/* «Скачать всё одним архивом» в заказе */
+.order-all { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 14px; border: 1px solid var(--line-2); border-top: 0; }
+.order-all .button { display: inline-flex; align-items: center; gap: 8px; }
+.order-all span { color: var(--faint); font-size: 12px; }
+
+/* Админка → «Письма»: сводка доставки */
+.mail-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 10px; }
+.mail-stat { padding: 12px 14px; border: 1px solid var(--line); background: var(--surface); }
+.mail-stat > b { display: block; margin-bottom: 8px; font: 600 14px var(--f-display); }
+.mail-row { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; padding: 4px 0; }
+.mail-row > span:first-child { width: 80px; color: var(--muted); }
+.mail-row .ok { color: #93fff3; }
+.mail-row .bad { color: #ff7a9a; font-weight: 600; }
+.mail-row .zero { color: var(--faint); }
+.mail-row .via { color: #f5c46b; }
+.adm-filter { display: flex; gap: 6px; margin: 6px 0 4px; flex-wrap: wrap; }

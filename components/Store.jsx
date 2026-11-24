@@ -53,6 +53,16 @@ export function StoreProvider({ initial, children }) {
     setReady(true);
     loadMe();
   }, [loadMe]);
+  // Купленное уходит из корзины: покупатель мог оплатить в другом браузере или в приложении банка
+  // и не вернуться на страницу заказа. Сервер присылает только оплаченные заказы этого покупателя.
+  useEffect(() => {
+    if (!ready || !s.orders?.length) return;
+    const owned = ownedIds(s);
+    if (!owned.size) return;
+    const setDone = id => { const b = (s.bundles || []).find(x => "set:" + x.id === id); return b && b.items.every(x => owned.has(x)); };
+    const cart = s.cart.filter(id => !owned.has(id) && !setDone(id));
+    if (cart.length !== s.cart.length) setS(p => ({ ...p, cart, ...(cart.length ? {} : { code: "" }) }));
+  }, [ready, s.orders]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!ready) return;
     try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(LOCAL.map(k => [k, s[k]])))); } catch {}

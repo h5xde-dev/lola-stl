@@ -783,10 +783,20 @@ export function AdminBundles() {
 // ---------- Письма и сообщения ----------
 export function AdminOutbox() {
   const { admin, s, toast } = useStore();
-  const [items, setItems] = useState(null);
+  const [items, setItems] = useState(null), [stats, setStats] = useState(null);
+  const [failed, setFailed] = useState(false), [again, setAgain] = useState("");
   const [to, setTo] = useState(""), [sending, setSending] = useState(false);
-  const reload = () => api("/api/admin/outbox").then(r => setItems(r.ok ? r.data.items : []));
-  useEffect(() => { reload(); }, []);
+  const reload = (f = failed) => api("/api/admin/outbox" + (f ? "?failed=1" : "")).then(r => { setItems(r.ok ? r.data.items : []); setStats(r.ok ? r.data.stats : null); });
+  useEffect(() => { reload(failed); }, [failed]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Письмо о заказе, которое не ушло, можно отправить ещё раз: сайт пришлёт ссылку на заказ заново
+  const resend = async code => {
+    setAgain(code);
+    const { ok, data } = await api(`/api/admin/orders/${code}`, { method: "POST", body: JSON.stringify({ action: "resend" }) });
+    setAgain("");
+    toast(ok ? `Ссылка на заказ ${code} отправлена ещё раз` : data.error || "Не получилось отправить");
+    reload();
+  };
+  const num = n => n.toLocaleString("ru-RU");
   const testMail = async e => {
     e.preventDefault();
     setSending(true);
@@ -816,7 +826,25 @@ export function AdminOutbox() {
           <button type="submit" className="mini-btn" disabled={sending || !(to || s.company?.email)}>{sending ? "Отправляем…" : "Отправить тестовое письмо"}</button>
         </form>}
       </section>
-      <p className="panel-sub">Каждое письмо покупателю и сообщение бота. Пока почта не подключена, письма не уходят, но ссылки из них можно открыть отсюда.</p>
+      {stats && <section className="panel"><h2>Доставка</h2>
+        <div className="mail-stats">
+          {[["email", "Письма"], ["telegram", "Сообщения бота"]].filter(([k]) => stats[k]).map(([k, t]) => (
+            <div key={k} className="mail-stat"><b>{t}</b>
+              {[["day", "За сутки"], ["week", "За неделю"]].map(([p, l]) => { const x = stats[k][p]; return (
+                <div key={p} className="mail-row"><span>{l}</span>
+                  <span className="ok">отправлено {num(x.ok)}</span>
+                  <span className={x.fail ? "bad" : "zero"}>не отправлено {num(x.fail)}</span>
+                  {k === "email" && x.via > 0 && <span className="via">из них через Яндекс {num(x.via)}</span>}
+                </div>); })}
+            </div>))}
+        </div>
+        <p className="panel-sub">«Через Яндекс» — письмо не принял основной сервис (RuSender), и оно ушло запасным путём. Яндекс может не пропустить письма на Gmail.</p>
+      </section>}
+      <div className="adm-filter" role="group" aria-label="Какие письма показать">
+        <button type="button" className="category-tab" aria-pressed={!failed} onClick={() => setFailed(false)}>Все</button>
+        <button type="button" className="category-tab" aria-pressed={failed} onClick={() => setFailed(true)}>Не отправленные{stats?.email?.total.fail ? ` · ${stats.email.total.fail + (stats.telegram?.total.fail || 0)}` : ""}</button>
+      </div>
+      <p className="panel-sub">Каждое письмо покупателю и сообщение бота, последние 200. Ссылки из писем можно открыть отсюда.</p>
       {!items ? <div className="skeleton">Загрузка…</div> : !items.length ? <div className="empty-state">Писем пока не было.</div> :
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>Когда</th><th>Кому</th><th>Тема и текст</th><th>Статус</th></tr></thead>
@@ -826,7 +854,10 @@ export function AdminOutbox() {
               <td>{m.recipient}<div className="meta">{m.channel === "telegram" ? "Telegram" : "email"}</div></td>
               <td style={{ whiteSpace: "pre-wrap", maxWidth: 520 }}>{m.subject && <b style={{ fontFamily: "var(--f-body)", fontWeight: 700, fontSize: 13 }}>{m.subject}<br /></b>}
                 <span className="meta" style={{ whiteSpace: "pre-wrap" }}>{link(m.body).map((p, i) => /^https?:/.test(p) ? <a key={i} href={p} className="text-link" style={{ fontSize: 12 }} target="_blank" rel="noreferrer">{p.length > 60 ? p.slice(0, 60) + "…" : p}</a> : p)}</span></td>
-              <td><span className={"status-pill " + (m.sent ? "" : "warn")}>{m.sent ? "отправлено" : "в журнале"}</span>{m.error && <div className="meta">{m.error}</div>}</td>
+              <td><span className={"status-pill " + (m.sent ? "" : "warn")}>{m.sent ? (m.error?.startsWith("ушло через SMTP") ? "отправлено через Яндекс" : "отправлено") : "не отправлено"}</span>
+                {m.error && <div className="meta">{m.error}</div>}
+                {!m.sent && m.channel === "email" && /^Заказ (L-\d+)/.test(m.subject || "") && (() => { const code = m.subject.match(/^Заказ (L-\d+)/)[1]; return (
+                  <button type="button" className="mini-btn" style={{ marginTop: 6 }} disabled={again === code} onClick={() => resend(code)}>{again === code ? "Отправляем…" : "Отправить ещё раз"}</button>); })()}</td>
             </tr>))}</tbody>
         </table></div>}
     </>
