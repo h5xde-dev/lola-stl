@@ -690,7 +690,6 @@ export function AdminPromo() {
           <div className="actions">
             <label className="check"><input type="checkbox" checked={!!edit.once} onChange={e => upd({ once: e.target.checked })} /><span>Один раз на покупателя</span></label>
             <label className="check"><input type="checkbox" checked={!!edit.firstOnly} onChange={e => upd({ firstOnly: e.target.checked })} /><span>Только первый заказ</span></label>
-            <label className="check"><input type="checkbox" checked={!!edit.duringPromo} onChange={e => upd({ duringPromo: e.target.checked })} /><span>Действует во время «1+1»</span></label>
             <label className="check"><input type="checkbox" checked={!!edit.active} onChange={e => upd({ active: e.target.checked })} /><span>Включён</span></label>
           </div>
           <div className="actions"><button type="button" className="btn primary" onClick={save}>Сохранить</button><button type="button" className="btn" onClick={() => setEdit(null)}>Отмена</button></div>
