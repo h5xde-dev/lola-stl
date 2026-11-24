@@ -428,9 +428,9 @@ export function AdminPrices() {
         {pr.prov.length > 0 && <p className="note">Цен за {pr.prov.join(", ")} модели не было в задании, здесь стоят предварительные. Измените цену, и она станет согласованной.</p>}
       </section>
       <section className="panel"><h2>Боксы</h2>
-        <p className="panel-sub">Боксы продаются по своей шкале: акции «1+1», подарки, промокоды и скидка постоянным на них не действуют.</p>
+        <p className="panel-sub">Боксы продаются по своей шкале: акции «1+1», подарки, промокоды и скидка постоянным на них не действуют. В полях «2 бокса» и «3 бокса» — сумма за все боксы: чтобы каждый стоил 600 ₽, укажите 600, 1 200 и 1 800.</p>
         <div className="price-grid">
-          <PriceCell onSave={setPrice} k="box.1" label="1 бокс" val={pr.box[1]} /><PriceCell onSave={setPrice} k="box.2" label="2 бокса" val={pr.box[2]} /><PriceCell onSave={setPrice} k="box.3" label="3 бокса" val={pr.box[3]} />
+          <PriceCell onSave={setPrice} k="box.1" label="1 бокс" val={pr.box[1]} /><PriceCell onSave={setPrice} k="box.2" label="2 бокса, сумма за оба" val={pr.box[2]} /><PriceCell onSave={setPrice} k="box.3" label="3 бокса, сумма за все" val={pr.box[3]} />
           <PriceCell onSave={setPrice} k="box4" label="от 4, за штуку" val={pr.box4} />
         </div>
       </section>
