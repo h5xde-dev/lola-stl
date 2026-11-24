@@ -116,6 +116,16 @@ img { max-width: 100%; }
 .bag-link b.on { background: var(--accent); color: var(--surface); }
 .bag-link .sum { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
 .mobile-menu { display: none !important; }
+/* Шапка, в которую не поместились пункты меню: меню «☰» с выпадающим списком (см. Header в Shell.jsx) */
+.site-header.compact .mobile-menu { display: grid !important; place-items: center; }
+.site-header.compact .header-in { justify-content: flex-start; }
+.site-header.compact .header-actions { margin-left: auto; }
+.site-header.compact .header-link { display: none; }
+.site-header.compact .account-icon { display: grid !important; place-items: center; color: #d5c6e6; }
+.site-header.compact .main-nav { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 8px max(20px, env(safe-area-inset-left, 0px)) 14px; flex-direction: column; align-items: stretch; gap: 0; background: #110d1a; border-bottom: 1px solid var(--line); }
+.site-header.compact .main-nav.nav-open { display: flex; }
+.site-header.compact .main-nav a { padding: 12px 4px; border-bottom: 1px solid #2e223b; font-size: 14px; }
+.site-header.compact .nav-account { display: block !important; }
 
 .site-footer { border-top: 1px solid var(--line); margin-top: 40px; }
 .footer-in { padding-block: 34px 26px; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; gap: 18px; }
@@ -177,8 +187,10 @@ img { max-width: 100%; }
 .tier-p { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; }
 .tiers-foot { grid-column: 1 / -1; background: var(--surface); padding: 10px 14px; color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
 
-.catalog-toolbar { display: flex; align-items: center; gap: 14px; padding-bottom: 22px; }
-.category-tabs { display: flex; gap: 6px; flex: 1; min-width: 0; }
+/* категорий бывает много: вкладки переносятся на новую строку, поиск уходит вниз, если не помещается рядом */
+.catalog-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-bottom: 22px; }
+.category-tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 420px; min-width: 0; }
+.catalog-toolbar .search-field { margin-left: auto; }
 .category-tab { padding: 8px 14px; color: var(--muted); border: 1px solid transparent; border-radius: 99px; background: transparent; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .category-tab:hover { border-color: var(--line); }
 .category-tab[aria-pressed="true"] { color: var(--surface); background: var(--ink); }
@@ -396,7 +408,7 @@ img { max-width: 100%; }
 .tg .tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tg .tier:nth-child(5) { grid-column: span 2; }
 .tg .catalog-toolbar { flex-wrap: wrap; }
-.tg .category-tabs { overflow-x: auto; }
+.tg .category-tabs { overflow-x: auto; flex-wrap: nowrap; }
 .tg .search-field { width: 100%; }
 .tg .search-field input { width: 100%; }
 .tg .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 10px; }
@@ -539,7 +551,8 @@ table.tbl.compact { min-width: 0; }
   .tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tier:nth-child(5) { grid-column: span 2; }
   .catalog-toolbar { flex-wrap: wrap; gap: 8px; }
-  .category-tabs { overflow-x: auto; flex-basis: 100%; gap: 2px; }
+  .category-tabs { overflow-x: auto; flex-wrap: nowrap; flex-basis: 100%; gap: 2px; }
+  .catalog-toolbar .search-field { margin-left: 0; }
   .category-tab { padding: 7px 11px; }
   .search-field { flex: 1; }
   .search-field input { width: 100%; }

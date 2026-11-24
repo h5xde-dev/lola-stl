@@ -2,7 +2,7 @@
 import { companyLine } from "@/lib/content";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, Menu, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
 import { useServerQuote, useStore } from "./Store";
 import Effects from "./Effects";
@@ -57,9 +57,33 @@ function Header() {
   const [open, setOpen] = useState(false);
   const home = path === "/";
   const menu = cats.filter(c => c.inMenu && s.models.some(m => m.category === c.id && !m.hidden && !m.deleted));
+  // Когда пункты меню не помещаются в строку (много категорий, узкое окно), шапка переходит на меню «☰»,
+  // иначе корзина уезжает за край экрана. Ширина меню меряется в обычном виде и запоминается.
+  const inRef = useRef(null), need = useRef(0);
+  const [compact, setCompact] = useState(false);
+  const menuKey = menu.map(c => c.name).join("|") + s.hasArticles + s.models.some(m => m.free && !m.hidden && !m.deleted);
+  useLayoutEffect(() => { need.current = 0; setCompact(false); }, [menuKey]);
+  useLayoutEffect(() => {
+    const el = inRef.current;
+    if (!el) return;
+    const check = () => {
+      const cs = getComputedStyle(el), gap = parseFloat(cs.columnGap) || 0;
+      const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      if (!compact) {
+        const kids = [...el.children].filter(k => getComputedStyle(k).display !== "none" && !k.classList.contains("mobile-menu"));
+        need.current = kids.reduce((a, k) => a + Math.max(k.scrollWidth, k.offsetWidth), 0) + gap * Math.max(0, kids.length - 1);
+      }
+      const next = need.current > avail + 1;
+      if (next !== compact) { setCompact(next); setOpen(false); }
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [compact, menuKey]);
   return (
-    <header className="site-header site-only">
-      <div className="wrap header-in">
+    <header className={"site-header site-only" + (compact ? " compact" : "")}>
+      <div className="wrap header-in" ref={inRef}>
         <button type="button" className="icon-btn mobile-menu" aria-label={open ? "Закрыть меню" : "Открыть меню"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button>
         <Brand />
         <nav className={open ? "main-nav nav-open" : "main-nav"} aria-label="Основная навигация">
