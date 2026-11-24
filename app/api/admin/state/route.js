@@ -30,22 +30,35 @@ export const GET = wrap(async () => {
   });
 });
 
+// Сохранения выполняются строго по очереди: два одновременных запроса из админки
+// (быстрые правки, вторая вкладка) не перемешиваются в базе.
+let queue = Promise.resolve();
+const serial = fn => { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; };
+
 // Сохранение изменений: приходят только изменившиеся разделы.
 export const PUT = wrap(async req => {
   const deny = await adminOnly(); if (deny) return deny;
   const b = await body(req);
-  if (Array.isArray(b.categories)) await R.saveCategories(b.categories);
-  if (Array.isArray(b.models)) {
-    // Модель получила новый файл — старый удаляем из хранилища. Файлы удалённых моделей остаются:
-    // те, кто их купил, сохраняют доступ.
-    // Файлы, которые убрали или заменили у живой модели, удаляем из хранилища.
-    // Файлы удалённых моделей остаются: те, кто их купил, сохраняют доступ.
-    const before = await R.getModelsAll();
-    await R.saveModels(b.models);
-    const used = new Set(b.models.flatMap(m => modelFiles(m).map(f => f.key)));
-    const gone = before.filter(o => b.models.some(m => m.id === o.id && !m.deleted)).flatMap(o => modelFiles(o).map(f => f.key)).filter(k => !used.has(k));
-    await Promise.all(gone.map(k => deleteFile(k)));
+  return serial(() => save(b));
+});
+
+async function save(b) {
+  // Старая версия админки присылала весь список моделей и «удаляла» всё, чего в нём не было.
+  // Открытая до обновления вкладка получит понятную ошибку и ничего не испортит.
+  if (Array.isArray(b.models)) return json({ error: "Админка обновилась — обновите страницу (F5), чтобы сохранить изменения." }, 409);
+  let modelsResult = null;
+  // Новый способ: только изменённые модели с номером версии (см. R.saveModelsPartial)
+  if (Array.isArray(b.modelsChanged)) {
+    const r = await R.saveModelsPartial(b.modelsChanged);
+    // Файлы, которые убрали или заменили у модели, удаляем — только если на них больше не ссылается ни одна модель
+    const old = r.saved.flatMap(x => (x.before ? modelFiles(x.before).map(f => f.key) : []));
+    if (old.length) {
+      const used = await R.usedFileKeys();
+      await Promise.all([...new Set(old)].filter(k => !used.has(k)).map(k => deleteFile(k)));
+    }
+    modelsResult = { revs: Object.fromEntries(r.saved.map(x => [x.id, x.rev])), conflicts: r.conflicts };
   }
+  if (Array.isArray(b.categories)) await R.saveCategories(b.categories);
   if (Array.isArray(b.promoCodes)) await R.savePromoCodes(b.promoCodes);
   if (Array.isArray(b.bundles)) await R.saveBundles(b.bundles);
   if (Array.isArray(b.articles)) await R.saveArticles(b.articles);
@@ -64,5 +77,5 @@ export const PUT = wrap(async req => {
   if (Object.keys(st).length) await R.setSettings(st);
   R.invalidate();              // кеш данных в памяти
   revalidatePath("/", "layout"); // кеш готовых страниц — сайт сразу показывает новые цены, акции и модели
-  return json({ ok: true });
-});
+  return json({ ok: true, ...(modelsResult ? { models: modelsResult } : {}) });
+}

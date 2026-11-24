@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, GripVertical, ChartColumn, ChevronDown, CreditCard, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles, Users } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
@@ -38,7 +38,7 @@ function AdminLogin({ onDone }) {
 }
 
 export function AdminShell({ children }) {
-  const { s, promo, cats, admin, loadAdmin, toast } = useStore();
+  const { s, set, promo, cats, admin, loadAdmin, toast } = useStore();
   const path = usePathname();
   const [auth, setAuth] = useState("loading");
   const [save, setSave] = useState("ok");
@@ -46,20 +46,54 @@ export function AdminShell({ children }) {
   useEffect(() => { loadAdmin().then(st => setAuth(st === 200 ? "ok" : st === 401 ? "login" : "error")); }, [loadAdmin]);
 
   // Автосохранение: всё, что изменилось после загрузки из базы, через 0,7 с уходит на сервер.
+  // Модели — только изменённые и с номером версии (rev): сервер не даст старым данным затереть новые
+  // и никогда не удаляет модель, если её просто нет в запросе. Запросы идут строго по очереди,
+  // а содержимое запроса собирается в момент отправки — из самого свежего состояния.
+  const sRef = useRef(s); sRef.current = s;
+  const revs = useRef({});
+  const queue = useRef(Promise.resolve());
+  const modelJson = m => { const { rev, ...rest } = m; return JSON.stringify(rest); };
+  const modelMap = list => Object.fromEntries((list || []).map(m => [m.id, modelJson(m)]));
+  const flush = useCallback(async () => {
+    const cur = sRef.current, sn = snap.current;
+    if (!sn) return;
+    const json = Object.fromEntries(SYNC.map(k => [k, JSON.stringify(cur[k] ?? null)]));
+    const models = modelMap(cur.models);
+    const changed = SYNC.filter(k => k !== "models" && json[k] !== sn.json[k]);
+    const changedModels = (cur.models || []).filter(m => models[m.id] !== sn.models[m.id])
+      .map(m => ({ ...m, rev: Math.max(Number(m.rev) || 0, revs.current[m.id] || 0) }));
+    if (!changed.length && !changedModels.length) { setSave("ok"); return; }
+    const payload = Object.fromEntries(changed.map(k => [k, cur[k]]));
+    if (changedModels.length) payload.modelsChanged = changedModels;
+    const { ok, data } = await api("/api/admin/state", { method: "PUT", body: JSON.stringify(payload) });
+    if (!ok) {
+      setSave("error"); toast(data.error || "Не получилось сохранить изменения");
+      if (data?.error?.includes("вход")) setAuth("login");
+      return;
+    }
+    changed.forEach(k => { sn.json[k] = json[k]; });
+    const got = data.models?.revs || {}, conflicts = data.models?.conflicts || [];
+    Object.entries(got).forEach(([id, rev]) => { revs.current[id] = rev; sn.models[id] = models[id]; });
+    if (Object.keys(got).length) set(p => ({ models: p.models.map(m => (got[m.id] ? { ...m, rev: got[m.id] } : m)) }));
+    if (conflicts.length) {
+      const names = conflicts.map(id => (cur.models || []).find(m => m.id === id)?.name || id).slice(0, 3).join(", ");
+      setSave("error");
+      toast(`Не сохранено: ${names} — эту модель уже изменили в другой вкладке или на другом устройстве. Обновите страницу (F5).`);
+      return;
+    }
+    setSave("ok");
+  }, [toast, set]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!admin) return;
-    const cur = Object.fromEntries(SYNC.map(k => [k, JSON.stringify(s[k] ?? null)]));
-    if (!snap.current || snap.current.at !== admin.loadedAt) { snap.current = { at: admin.loadedAt, json: cur }; return; }
-    const changed = SYNC.filter(k => cur[k] !== snap.current.json[k]);
-    if (!changed.length) return;
+    const json = Object.fromEntries(SYNC.map(k => [k, JSON.stringify(s[k] ?? null)]));
+    const models = modelMap(s.models);
+    if (!snap.current || snap.current.at !== admin.loadedAt) { snap.current = { at: admin.loadedAt, json, models }; revs.current = {}; return; }
+    const dirty = SYNC.some(k => k !== "models" && json[k] !== snap.current.json[k]) || Object.keys(models).some(id => models[id] !== snap.current.models[id]);
+    if (!dirty) return;
     setSave("saving");
-    const t = setTimeout(async () => {
-      const { ok, data } = await api("/api/admin/state", { method: "PUT", body: JSON.stringify(Object.fromEntries(changed.map(k => [k, s[k]]))) });
-      if (ok) { changed.forEach(k => { snap.current.json[k] = cur[k]; }); setSave("ok"); }
-      else { setSave("error"); toast(data.error || "Не получилось сохранить изменения"); if (data && ok === false && data.error?.includes("вход")) setAuth("login"); }
-    }, 700);
+    const t = setTimeout(() => { queue.current = queue.current.then(flush, flush); }, 700);
     return () => clearTimeout(t);
-  }, [s, admin, toast]);
+  }, [s, admin, flush]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (auth === "loading") return <div className="inner-page"><div className="skeleton" aria-busy="true">Загружаем данные…</div></div>;
   if (auth === "login") return <AdminLogin onDone={() => loadAdmin().then(st => setAuth(st === 200 ? "ok" : "login"))} />;
@@ -256,6 +290,11 @@ export function AdminEditor({ id }) {
     let warn = "";
     if (!next.mb && !next.hidden) { next.hidden = true; warn = " Модель скрыта, пока не загружен STL-файл."; }
     const exists = s.models.some(m => m.id === d.id);
+    // Новая модель — первой в каталоге и в списке админки (и после обновления страницы тоже)
+    if (!exists && !Number.isFinite(Number(next.order) || NaN)) {
+      const orders = s.models.map(m => Number(m.order)).filter(Number.isFinite);
+      next.order = (orders.length ? Math.min(...orders) : 1) - 1;
+    }
     set(p => ({ models: exists ? p.models.map(m => m.id === d.id ? next : m) : [next, ...p.models] }));
     router.push("/admin");
     toast((exists ? "Изменения сохранены." : `«${name}» добавлена${next.hidden ? " (скрыта)" : " в каталог"}.`) + warn);

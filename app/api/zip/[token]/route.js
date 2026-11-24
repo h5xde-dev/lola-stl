@@ -1,4 +1,4 @@
-import { PassThrough, Readable } from "node:stream";
+import { PassThrough } from "node:stream";
 import archiver from "archiver";
 import { verify } from "@/lib/server/auth";
 import { orderById, orderCode } from "@/lib/server/repo";
@@ -37,10 +37,22 @@ export async function GET(req, { params }) {
   zip.on("warning", e => console.error("zip:", e.message));
   zip.on("error", e => console.error("zip:", e.message));
   for (const f of files) zip.append(lazy(f.key), { name: f.name });
+  // Свой поток вместо Readable.toWeb: если покупатель прервал скачивание, архиватор останавливается,
+  // а не пишет в уже закрытый поток (иначе сервер ловит «Controller is already closed»).
+  let closed = false;
+  const body = new ReadableStream({
+    start(c) {
+      zip.on("data", ch => { if (closed) return; try { c.enqueue(new Uint8Array(ch)); if (c.desiredSize <= 0) zip.pause(); } catch { closed = true; zip.abort(); } });
+      zip.on("end", () => { if (!closed) { closed = true; try { c.close(); } catch {} } });
+      zip.on("error", e => { if (!closed) { closed = true; try { c.error(e); } catch {} } });
+    },
+    pull() { zip.resume(); },
+    cancel() { closed = true; zip.abort(); },
+  }, { highWaterMark: 4 * 1024 * 1024, size: ch => ch.byteLength });
   zip.finalize();
-  req.signal?.addEventListener("abort", () => zip.abort());
+  req.signal?.addEventListener("abort", () => { closed = true; zip.abort(); });
   const name = `lola.stl_${orderCode(o.id)}.zip`;
-  return new Response(Readable.toWeb(zip), {
+  return new Response(body, {
     headers: { "Content-Type": "application/zip", "Cache-Control": "private, no-store", "Content-Disposition": `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}` },
   });
 }

@@ -169,7 +169,7 @@ ok((await jar().f("/api/admin/analytics")).status === 401, "аналитика �
 
 // бесплатные модели: заказ на 0 ₽ без оплаты, раздел /free
 as = await j(await adm.f("/api/admin/state"));
-await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: as.models.map(m => m.id === "p05" ? { ...m, free: true } : m) }) });
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: as.models.map(m => m.id === "p05" ? { ...m, free: true } : m) }) });
 const freePage = await (await jar().f("/free")).text();
 ok(freePage.includes("Ромашки") && freePage.includes('"price":0'), "раздел бесплатных моделей с разметкой цены 0");
 const F = jar();
@@ -183,7 +183,7 @@ ok(me.orders[0]?.status === "paid" && me.orders[0].items.includes("p05"), "бе�
 
 // несколько файлов у модели: каждый скачивается отдельно, ключи хранилища не видны на сайте
 as = await j(await adm.f("/api/admin/state"));
-await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: as.models.map(m => m.id === "p05" ? { ...m, fileKey: undefined,
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: as.models.map(m => m.id === "p05" ? { ...m, fileKey: undefined,
   files: [{ id: "fa", key: "models/p05-a.stl", name: "Кашпо.stl", mb: 10 }, { id: "fb", key: "models/p05-b.stl", name: "Поддон.stl", mb: 5 }], mb: 15 } : m) }) });
 const pub = await (await jar().f("/models/romashki")).text();
 ok(pub.includes("Поддон.stl") && !pub.includes("models/p05-b.stl"), "на странице модели видны файлы, но не ключи хранилища");
@@ -239,10 +239,28 @@ await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ home: { 
 ok(!(await (await jar().f("/")).text()).includes('id="works"'), "пустая галерея не показывается");
 await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ home: as.home }) });
 
+// новая модель не пропадает: старая вкладка и одновременные сохранения её не «удаляют»
+as = await j(await adm.f("/api/admin/state"));
+const fresh = { ...as.models[0], id: "e2e-new", slug: "e2e-new", name: "Новая e2e", order: 99, rev: 0 };
+const stale = as.models.slice(0, 3).map(m => ({ ...m, desc: (m.desc || "") + " " }));
+const [r1, r2] = await Promise.all([
+  adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: stale }) }),
+  adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: [fresh] }) }),
+]);
+let as2 = await j(await adm.f("/api/admin/state"));
+ok(r1.status === 200 && r2.status === 200 && as2.models.some(m => m.id === "e2e-new" && !m.deleted), "новая модель сохраняется при одновременных сохранениях");
+const old = await j(await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: [{ ...stale[0], rev: 0, name: "старое имя" }] }) }));
+as2 = await j(await adm.f("/api/admin/state"));
+ok(old.models?.conflicts?.includes(stale[0].id) && as2.models.find(m => m.id === stale[0].id)?.name !== "старое имя", "старая версия модели не затирает новую");
+const legacy = await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: [] }) });
+as2 = await j(await adm.f("/api/admin/state"));
+ok(legacy.status === 409 && as2.models.length >= as.models.length, "старая админка со списком моделей ничего не удаляет");
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: [{ ...as2.models.find(m => m.id === "e2e-new"), deleted: true }] }) });
+
 // порядок моделей из админки = порядок в каталоге
 as = await j(await adm.f("/api/admin/state"));
 const ordered = [...as.models].sort((a, b) => (a.id === "p07" ? -1 : b.id === "p07" ? 1 : 0)).map((m, i) => ({ ...m, order: i + 1 }));
-await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ models: ordered }) });
+await adm.f("/api/admin/state", { method: "PUT", body: JSON.stringify({ modelsChanged: ordered }) });
 const firstCard = (await (await jar().f("/")).text()).match(/<article class="product-card[^"]*"[\s\S]*?<h3><a href="\/models\/([^"]+)"/)?.[1];
 ok(firstCard === "lotok-kapli" || firstCard === as.models.find(m => m.id === "p07")?.slug, `первая в каталоге — модель, поставленная первой (${firstCard})`);
 
