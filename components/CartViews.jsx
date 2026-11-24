@@ -10,6 +10,12 @@ import { fmtDate, fmtDay, models, rub, zipMb } from "@/lib/format";
 import { modelHref } from "@/lib/models";
 import { PAY_METHODS } from "@/lib/payments";
 
+// Настоящее мини-приложение Telegram (а не вид «как в Telegram» в браузере)
+const tgApp = () => { const w = typeof window !== "undefined" && window.Telegram?.WebApp; return w?.initData ? w : null; };
+// Страница банка в Telegram открывается во внешнем браузере: во встроенном не работает кнопка «Назад»
+// (ею управляет наш сайт, а он уже закрыт) и не открываются приложения банков по СБП.
+const openPay = url => { const w = tgApp(); if (!w) return false; try { w.openLink(new URL(url, location.href).href); return true; } catch { return false; } };
+
 // Поле промокода. Код хранится в состоянии; применять или нет, решает расчёт цены.
 function PromoField() {
   const { s, set } = useStore();
@@ -140,6 +146,7 @@ export function CartView() {
 
 export function CheckoutView() {
   const { s, set, me } = useStore();
+  const router = useRouter();
   const Q = useServerQuote();
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -163,6 +170,8 @@ export function CheckoutView() {
     setBusy(true);
     const { ok, data } = await api("/api/checkout", { method: "POST", body: JSON.stringify({ cart: s.cart, code: s.code, email, agree: true, pd: true, channel: tg ? "tg" : "site", method: f.pm?.value || (free ? "" : methods[0]?.id) }) });
     if (!ok) { setBusy(false); setErrors({ form: data.error || "Не получилось создать заказ. Попробуйте ещё раз." }); return; }
+    // В Telegram оплата — во внешнем браузере, а мини-приложение ждёт подтверждения на странице возврата
+    if (data.back && data.total > 0 && openPay(data.url)) { router.replace(data.back); return; }
     location.href = data.url;
   };
 
@@ -212,6 +221,8 @@ export function ReturnView() {
   const params = useSearchParams();
   const code = params.get("order") || "", t = params.get("t") || "";
   const [st, setSt] = useState("wait");
+  const [payUrl, setPayUrl] = useState("");
+  const inTg = !!tgApp();
   useEffect(() => {
     let alive = true, tries = 0;
     const tick = async () => {
@@ -220,12 +231,13 @@ export function ReturnView() {
       const r = t ? await api(`/api/o/${encodeURIComponent(t)}`) : await api(`/api/orders/${encodeURIComponent(code)}`);
       const ok = r.ok, data = t && r.ok ? { status: r.data.order ? "paid" : r.data.canceled ? "canceled" : "pending" } : r.data;
       if (!alive) return;
+      if (t && r.ok && r.data.url) setPayUrl(r.data.url);
       if (ok && ["paid", "review", "revoked"].includes(data.status)) {
         set({ cart: [], code: "" }); setFlash(code); await loadMe(); router.replace("/account"); return;
       }
       if (ok && data.status === "canceled") { setSt("canceled"); return; }
       if (!ok) { setSt("missing"); return; }
-      if (++tries > 60) { setSt("slow"); return; }
+      if (++tries > (inTg ? 150 : 60)) { setSt("slow"); return; }
       setTimeout(tick, 2000);
     };
     tick();
@@ -238,8 +250,10 @@ export function ReturnView() {
         <p>{st === "canceled" ? "Деньги не списаны. Корзина сохранилась — можно попробовать ещё раз."
           : st === "slow" ? (t ? "Подтверждение задерживается. Сохраните ссылку на заказ ниже: по ней файлы откроются сразу после оплаты, в любом браузере." : "Подтверждение задерживается. Ссылка на файлы придёт на email сразу после оплаты — эту страницу можно закрыть.")
           : st === "missing" ? "Откройте заказ по ссылке из письма."
+          : inTg ? "Оплатите заказ на странице банка — она открылась в браузере. Затем вернитесь в Telegram: заказ откроется здесь сам."
           : "Обычно это занимает несколько секунд. Не закрывайте страницу."}</p></div>
       {st === "wait" && <div className="skeleton" aria-busy="true"><span className="spinner" /></div>}
+      {inTg && payUrl && ["wait", "slow"].includes(st) && <div className="actions"><button type="button" className="button button-dark" onClick={() => openPay(payUrl)}>Открыть страницу оплаты</button><Link href="/checkout" className="button button-outline">Другой способ оплаты</Link></div>}
       {st === "slow" && t && <p className="order-saved-link"><Link href={`/o/${t}`}>{`${location.origin}/o/${t}`}</Link></p>}
       {st !== "wait" && <div className="actions"><Link href="/cart" className="button button-dark">В корзину</Link><Link href="/account" className="button button-outline">Личный кабинет</Link></div>}
     </div>
