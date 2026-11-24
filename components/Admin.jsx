@@ -842,10 +842,10 @@ export function AdminOutbox() {
       </section>}
       <div className="adm-filter" role="group" aria-label="Какие письма показать">
         <button type="button" className="category-tab" aria-pressed={!failed} onClick={() => setFailed(false)}>Все</button>
-        <button type="button" className="category-tab" aria-pressed={failed} onClick={() => setFailed(true)}>Не отправленные{stats?.email?.total.fail ? ` · ${stats.email.total.fail + (stats.telegram?.total.fail || 0)}` : ""}</button>
+        <button type="button" className="category-tab" aria-pressed={failed} onClick={() => setFailed(true)}>Не отправленные{(stats?.email?.total.fail || 0) + (stats?.telegram?.total.fail || 0) ? ` · ${(stats.email?.total.fail || 0) + (stats.telegram?.total.fail || 0)}` : ""}</button>
       </div>
-      <p className="panel-sub">Каждое письмо покупателю и сообщение бота, последние 200. Ссылки из писем можно открыть отсюда.</p>
-      {!items ? <div className="skeleton">Загрузка…</div> : !items.length ? <div className="empty-state">Писем пока не было.</div> :
+      <p className="panel-sub">{failed ? "Письма и сообщения, которые так и не дошли. Повторно отправленные, тестовые заказы и приветствия бота здесь не показываются." : "Каждое письмо покупателю и сообщение бота, последние 200. Ссылки из писем можно открыть отсюда."}</p>
+      {!items ? <div className="skeleton">Загрузка…</div> : !items.length ? <div className="empty-state">{failed ? "Всё доставлено: неотправленных писем нет." : "Писем пока не было."}</div> :
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>Когда</th><th>Кому</th><th>Тема и текст</th><th>Статус</th></tr></thead>
           <tbody>{items.map(m => (
