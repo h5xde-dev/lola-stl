@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, GripVertical, ChartColumn, ChevronDown, CreditCard, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BadgePercent, GripVertical, ChartColumn, ChevronDown, CreditCard, Cloud, CloudOff, FolderTree, House, Layers, LayoutGrid, LogOut, Mail, Newspaper, Plus, ReceiptText, Search, Sparkles, Users } from "lucide-react";
 import ModelArt from "./ModelArt";
 import { Brand } from "./Shell";
 import { api, useStore } from "./Store";
@@ -65,7 +65,7 @@ export function AdminShell({ children }) {
   if (auth === "login") return <AdminLogin onDone={() => loadAdmin().then(st => setAuth(st === 200 ? "ok" : "login"))} />;
   if (auth === "error") return <div className="inner-page"><div className="empty-state">Сервер не ответил. Обновите страницу через минуту.</div></div>;
 
-  const tab = ["prices", "orders", "categories", "promo", "bundles", "outbox", "analytics", "home", "articles", "seo", "payments"].find(t => path.startsWith("/admin/" + t)) || "models";
+  const tab = ["prices", "orders", "customers", "categories", "promo", "bundles", "outbox", "analytics", "home", "articles", "seo", "payments"].find(t => path.startsWith("/admin/" + t)) || "models";
   const link = (href, Icon, t, n, k) => <Link href={href} aria-current={tab === k ? "page" : undefined}><Icon size={17} aria-hidden="true" /><span>{t}</span><small>{n}</small></Link>;
   return (
     <div className="admin-page">
@@ -75,6 +75,7 @@ export function AdminShell({ children }) {
           {link("/admin", LayoutGrid, "Модели", live(s).length, "models")}
           {link("/admin/categories", FolderTree, "Категории", cats.length, "categories")}
           {link("/admin/orders", ReceiptText, "Заказы", s.orders.length, "orders")}
+          {link("/admin/customers", Users, "Покупатели", "", "customers")}
           {link("/admin/prices", Sparkles, "Цены и акции", promo ? "1+1" : "2+1", "prices")}
           {link("/admin/promo", BadgePercent, "Промокоды", (s.promoCodes || []).filter(c => !c.deleted && c.active).length, "promo")}
           {link("/admin/bundles", Layers, "Наборы", (s.bundles || []).filter(b => !b.deleted && b.active).length, "bundles")}
@@ -776,6 +777,54 @@ export function AdminBundles() {
               <button type="button" className="mini-btn" style={{ color: "var(--danger)" }} onClick={() => { set(p => ({ bundles: p.bundles.map(x => x.id === b.id ? { ...x, deleted: true } : x), cart: p.cart.filter(x => x !== "set:" + b.id) })); toast(`Набор «${b.name}» удалён`); }}>Удалить</button></div></td>
           </tr>))}</tbody>
       </table></div>}
+    </>
+  );
+}
+
+// ---------- Покупатели ----------
+// Список покупателей и ссылка для входа в их кабинет: отправить письмом (и в Telegram) или скопировать и переслать.
+export function AdminCustomers() {
+  const { toast } = useStore();
+  const [items, setItems] = useState(null), [q, setQ] = useState(""), [busy, setBusy] = useState("");
+  useEffect(() => { api("/api/admin/customers").then(r => setItems(r.ok ? r.data.items : [])); }, []);
+  const act = async (c, action) => {
+    setBusy(c.id + action);
+    const { ok, data } = await api("/api/admin/customers", { method: "POST", body: JSON.stringify({ id: c.id, action }) });
+    setBusy("");
+    if (!ok) { toast(data.error || "Не получилось"); return; }
+    if (action === "link") {
+      try { await navigator.clipboard.writeText(data.link); toast("Ссылка для входа скопирована — она действует 3 дня"); }
+      catch { window.prompt("Скопируйте ссылку для входа (действует 3 дня):", data.link); }
+      return;
+    }
+    const sent = [data.mailed && `письмо на ${c.email}`, data.tg && "сообщение в Telegram"].filter(Boolean).join(" и ");
+    toast(sent ? `Отправлено: ${sent}` : "Не получилось отправить — нажмите «Скопировать ссылку» и перешлите сами");
+  };
+  const needle = q.trim().toLowerCase();
+  const list = (items || []).filter(c => !needle || [c.email, c.tg, ...(c.codes || [])].some(v => String(v || "").toLowerCase().includes(needle)));
+  return (
+    <>
+      <div className="adm-h"><div><Eyebrow /><h1>Покупатели</h1></div></div>
+      <p className="panel-sub">Если покупатель не может войти в кабинет или не нашёл письмо, отправьте ему ссылку для входа или скопируйте её и перешлите в мессенджере. Ссылка действует 3 дня, после входа кабинет открыт на устройстве 90 дней.</p>
+      <div className="promo-field" style={{ maxWidth: 420, margin: "0 0 14px" }}>
+        <label htmlFor="cuQ" className="sr-only">Поиск покупателя</label>
+        <input id="cuQ" type="search" placeholder="Email, Telegram или номер заказа" value={q} onChange={e => setQ(e.target.value)} style={{ textTransform: "none", fontFamily: "var(--f-body)", letterSpacing: 0 }} />
+      </div>
+      {!items ? <div className="skeleton">Загрузка…</div> : !list.length ? <div className="empty-state">{needle ? "Никого не нашли." : "Покупателей пока нет."}</div> :
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>Покупатель</th><th>Заказы</th><th>Сумма</th><th>Последняя покупка</th><th></th></tr></thead>
+          <tbody>{list.map(c => (
+            <tr key={c.id}>
+              <td>{c.email || "—"}{c.tg && <div className="meta">{c.tg}</div>}</td>
+              <td>{c.paid ? c.paid : "—"}{c.codes?.length > 0 && <div className="meta">{c.codes.slice(0, 4).join(", ")}{c.codes.length > 4 ? "…" : ""}</div>}{c.pending > 0 && <div className="meta">ждут оплаты: {c.pending}</div>}</td>
+              <td style={{ whiteSpace: "nowrap" }}>{c.spent ? rub(c.spent) : "—"}</td>
+              <td style={{ whiteSpace: "nowrap" }}>{c.last ? new Date(c.last).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
+              <td><div className="cu-actions">
+                <button type="button" className="mini-btn" disabled={!!busy || (!c.email && !c.tg)} onClick={() => act(c, "send")}>{busy === c.id + "send" ? "Отправляем…" : "Отправить ссылку для входа"}</button>
+                <button type="button" className="mini-btn" disabled={!!busy} onClick={() => act(c, "link")}>{busy === c.id + "link" ? "…" : "Скопировать ссылку"}</button>
+              </div></td>
+            </tr>))}</tbody>
+        </table></div>}
     </>
   );
 }

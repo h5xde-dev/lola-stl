@@ -1358,3 +1358,5 @@ body { background: var(--bg); }
 .mail-row .zero { color: var(--faint); }
 .mail-row .via { color: #f5c46b; }
 .adm-filter { display: flex; gap: 6px; margin: 6px 0 4px; flex-wrap: wrap; }
+
+.cu-actions { display: flex; flex-wrap: wrap; gap: 6px; }
