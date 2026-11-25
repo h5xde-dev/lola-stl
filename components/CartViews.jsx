@@ -264,8 +264,8 @@ const STATUS = {
   revoked: "Доступ к файлам этого заказа закрыт. Если это ошибка, напишите нам.",
 };
 
-function LinkRequest() {
-  const [email, setEmail] = useState("");
+function LinkRequest({ initial = "" }) {
+  const [email, setEmail] = useState(initial);
   const [sent, setSent] = useState(false);
   const send = async e => {
     e.preventDefault();
@@ -417,6 +417,8 @@ export function AccountView() {
     if (params.get("welcome")) toast("Готово: вы вошли в личный кабинет на этом устройстве.");
   }, [params, toast]);
   const who = me?.customer;
+  // Без входа, но с заказами по ссылке из письма — показываем почту из этих заказов, а не «Гость»
+  const linkedEmail = !who ? orders.find(o => o.email)?.email || "" : "";
   const spent = orders.filter(o => o.status === "paid").reduce((a, o) => a + o.total, 0);
   const count = orders.reduce((a, o) => a + o.items.length, 0);
 
@@ -424,8 +426,8 @@ export function AccountView() {
     <div className="inner-page">
       <div className="page-title"><span className="eyebrow">Ваша коллекция</span><h1>Личный кабинет</h1><p>Купленные модели, ссылки на заказы и чеки.</p></div>
       <div className="account-banner">
-        <div className="account-avatar" aria-hidden="true">{(who?.email || who?.tg || "L").replace(/^@/, "")[0].toUpperCase()}</div>
-        <div><b>{who ? (who.email || (who.tg ? "Telegram: " + who.tg : "Ваш кабинет")) : tg ? "Мини-приложение" : "Гость"}</b>
+        <div className="account-avatar" aria-hidden="true">{(who?.email || who?.tg || linkedEmail || "L").replace(/^@/, "")[0].toUpperCase()}</div>
+        <div><b>{who ? (who.email || (who.tg ? "Telegram: " + who.tg : "Ваш кабинет")) : linkedEmail || (tg ? "Мини-приложение" : "Гость")}</b>
           <p>{who ? `Заказов: ${orders.length} · моделей: ${count}${spent ? " · на " + rub(spent) : ""}`
             : orders.length ? "Заказы, открытые на этом устройстве по ссылкам из писем. Войдите, чтобы видеть все." : "Войдите по ссылке из письма или через Telegram."}</p></div>
         {who ? <button type="button" className="text-link" style={{ border: 0, background: "none", cursor: "pointer" }} onClick={async () => { await api("/api/auth/logout", { method: "POST" }); location.reload(); }}>Выйти</button>
@@ -442,7 +444,7 @@ export function AccountView() {
       ) : <>
         {orders.map(o => <OrderBlock key={o.id} o={o} dl={dl} />)}
         {!orders.length && me && <div className="empty-state" style={{ marginTop: 26 }}>Заказов пока нет. <Link href="/#catalog">Перейти в каталог</Link></div>}
-        {me && !who && <LinkRequest />}
+        {me && !who && <LinkRequest initial={linkedEmail} />}
       </>}
     </div>
   );
